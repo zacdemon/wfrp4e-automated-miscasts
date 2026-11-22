@@ -2,19 +2,23 @@
  * WFRP 4e Automated Miscasts
  *
  * Wraps game.wfrp4e.tables.formatChatRoll (the path used by the cast/channel card's miscast button,
- * @Table links and /table). For miscast tables it rolls through the system's own rollTable, then,
- * instead of printing the result text, posts the result as an Item card exactly like the system
- * does for critical wounds (a "item" type ChatMessage whose PostedItemMessageModel makes the card
- * draggable onto an actor sheet).
+ * @Table links and /table). For miscast tables it rolls through the system's own rollTable, then
+ * posts a miscast card instead of the plain result text:
  *
- * The Item is built at roll time from the user's installed RollTable result: its name, text and,
- * when the result links a scripted ActiveEffect (core / Winds of Magic), a copy of that effect,
- * so the system runs the effect's automation when the Item lands on a character.
+ *  - Results with automation (a linked core / Winds of Magic Active Effect, a core effect the table
+ *    doesn't link, or one of this module's effects) get a draggable card. Dropping it on an actor
+ *    sheet or a token applies the miscast as a temporary Active Effect through the system's own
+ *    actor.applyEffect (the same path warhammer-lib uses for effects dropped on the canvas), so the
+ *    effect's scripts run and any duration they set shows on the sheet.
+ *  - Narrative results get a plain card with the result text: no drag, no effect.
+ *
+ * Card text and effects are read at roll time from the user's installed tables and compendiums.
  */
 import { MODULE_ID, MISCAST_KEYS, SOURCE_TABLES, LINKED_EFFECTS, MODULE_EFFECTS, NO_EFFECT_NAMES } from "./miscast-data.mjs";
 
 const i18n = key => game.i18n.localize(key);
 const fmt = (key, data) => game.i18n.format(key, data);
+const DRAG_TYPE = "wfam-miscast";
 const MISCAST_IMG = "icons/magic/unholy/energy-smoke-pink.webp";
 // wfrp4e-core 8.0.1 effects point at this icon, which the module doesn't ship.
 const MISSING_IMG = /wfrp4e-core\/icons\/effects\/miscast\.png$/;
@@ -31,15 +35,6 @@ export function registerSettings() {
     config: true,
     type: Boolean,
     default: true
-  });
-  game.settings.register(MODULE_ID, "itemType", {
-    name: "WFAM.Settings.ItemType.Name",
-    hint: "WFAM.Settings.ItemType.Hint",
-    scope: "world",
-    config: true,
-    type: String,
-    choices: { injury: "WFAM.Settings.ItemType.injury", psychology: "WFAM.Settings.ItemType.psychology" },
-    default: "injury"
   });
 }
 
@@ -64,135 +59,277 @@ export function identifyTable(table) {
 const SOURCE_LABEL = { core: "WFAM.Source.core", moo: "WFAM.Source.moo", wom: "WFAM.Source.wom", other: "WFAM.Source.other" };
 
 /* ------------------------------------------------------------------------------------------ */
-/* Item construction                                                                            */
+/* Effect construction                                                                          */
 /* ------------------------------------------------------------------------------------------ */
 
-function resultName(result) {
-  return (result.name || result.text || "").trim();
-}
+const resultName = result => (result.name || result.text || "").trim();
+const resultDescription = result => result.description ?? result.text ?? "";
 
-function resultDescription(result) {
-  return result.description ?? result.text ?? "";
-}
-
-/** Copy an ActiveEffect document into embeddable Item effect data. */
+/** Copy an ActiveEffect document into plain effect data for the card. */
 function effectData(doc, sourceUuid) {
   const data = doc.toObject();
   delete data._id;
-  data.transfer = true;
   if (!data.img || MISSING_IMG.test(data.img)) data.img = MISCAST_IMG;
-  const td = data.system?.transferData;
-  // Area / target effects don't land on the owner; expose them as buttons on the Item instead.
-  if (td && ["area", "target", "zone"].includes(td.type)) td.testIndependent = true;
   foundry.utils.setProperty(data, `flags.${MODULE_ID}.source`, sourceUuid);
   return data;
 }
 
 /**
- * Build Item data for one rolled TableResult.
- * @returns {Promise<{itemData: object, automation: string}|null>} null when the result should keep
- *          the system's normal output (a "no effect" row, or a result that links an Item).
+ * Work out what a rolled TableResult does.
+ * @returns {Promise<object|null>} null when the result should keep the system's normal output
+ *          (a "no effect" row, or a result that links an Item).
  */
-export async function buildMiscastItem(table, result, { roll, messageId } = {}) {
+export async function buildMiscast(table, result, { roll, messageId } = {}) {
   const name = resultName(result);
   if (!name || NO_EFFECT_NAMES.includes(name.toLowerCase())) return null;
   const { source, key } = identifyTable(table);
-  const effects = [];
-  const auto = [];
+  let effect = null;
+  let automation = null;
 
-  // 1. Result links a document: copy a linked ActiveEffect (core / WoM automation).
+  // 1. Result links a document: use a linked ActiveEffect (core / WoM automation).
   let linked = result.documentUuid ? await fromUuid(result.documentUuid).catch(() => null) : null;
   if (linked?.documentName === "Item") return null; // let the system post that Item itself
   if (linked?.documentName === "ActiveEffect") {
-    effects.push(effectData(linked, result.documentUuid));
-    auto.push(fmt("WFAM.Auto.Linked", { name: linked.name }));
+    effect = effectData(linked, result.documentUuid);
+    automation = fmt("WFAM.Auto.Linked", { name: linked.name });
   }
 
   // 2. Known text result whose effect ships in core but isn't linked by the table.
-  if (!effects.length) {
+  if (!effect) {
     const uuid = LINKED_EFFECTS[source]?.[name.toLowerCase()];
     const doc = uuid ? await fromUuid(uuid).catch(() => null) : null;
     if (doc?.documentName === "ActiveEffect") {
       linked = doc;
-      effects.push(effectData(doc, uuid));
-      auto.push(fmt("WFAM.Auto.Linked", { name: doc.name }));
+      effect = effectData(doc, uuid);
+      automation = fmt("WFAM.Auto.Linked", { name: doc.name });
     }
   }
 
   // 3. This module's own effect for a mechanical text result.
-  const img = MISCAST_IMG;
-  if (!effects.length) {
+  if (!effect) {
     const builder = MODULE_EFFECTS[source]?.[name.toLowerCase()] ?? MODULE_EFFECTS["*"]?.[name.toLowerCase()];
     if (builder) {
-      const data = builder({ img, i18n });
-      foundry.utils.setProperty(data, `flags.${MODULE_ID}.source`, MODULE_ID);
-      effects.push(data);
-      auto.push(fmt("WFAM.Auto.Module", { name: data.name }));
+      effect = builder({ img: MISCAST_IMG, i18n });
+      foundry.utils.setProperty(effect, `flags.${MODULE_ID}.source`, MODULE_ID);
+      automation = fmt("WFAM.Auto.Module", { name: effect.name });
     }
   }
 
   let description = resultDescription(result);
   if (!description && linked?.description) description = linked.description;
-  const redirect = /@Table\[/.test(description);
-  if (!effects.length && !redirect) description += `<p><em>${i18n("WFAM.Card.Manual")}</em></p>`;
+  if (effect && !effect.description) effect.description = description;
 
-  const itemType = game.settings.get(MODULE_ID, "itemType") || "injury";
-  const system = { description: { value: description } };
-  if (itemType === "injury") Object.assign(system, { location: { key: "", value: "" }, penalty: { value: "" }, duration: { value: "", active: false, permanent: false } });
-
-  const itemData = {
+  const transferType = effect?.system?.transferData?.type ?? null;
+  return {
     name,
-    type: itemType,
-    img,
-    system,
-    effects,
-    flags: {
-      wfrp4e: messageId ? { sourceMessageId: messageId } : {},
-      [MODULE_ID]: {
-        miscast: { key, source, table: table.uuid, tableName: table.name, result: result.uuid ?? null, roll: roll ?? null }
-      }
-    }
+    description,
+    effect,
+    transferType,
+    automation,
+    source,
+    key,
+    miscast: { key, source, table: table.uuid, tableName: table.name, result: result.uuid ?? null, roll: roll ?? null, sourceMessageId: messageId ?? null }
   };
-  return { itemData, automation: auto.length ? auto.join(", ") : i18n(redirect ? "WFAM.Auto.Redirect" : "WFAM.Auto.None"), source, key };
 }
 
 /* ------------------------------------------------------------------------------------------ */
-/* Posting                                                                                      */
+/* Card                                                                                         */
 /* ------------------------------------------------------------------------------------------ */
 
-/** Post an item card the same way PostedItemMessageModel.create does, with miscast properties. */
-async function postMiscastCard(built, table, { roll, messageId } = {}) {
-  const { itemData, automation, source } = built;
-  const properties = [
-    `<b>${i18n("WFAM.Card.Table")}</b>: ${table.name} <span class="wfam-source">(${i18n(SOURCE_LABEL[source])})</span>`,
-    `<b>${i18n("WFAM.Card.Roll")}</b>: ${roll}`,
-    `<b>${i18n("WFAM.Card.Automation")}</b>: ${automation}`,
-    `<i class="fas fa-hand-pointer"></i> ${i18n("WFAM.Card.DragHint")}`
+const escape = s => foundry.utils.escapeHTML(String(s ?? ""));
+
+async function postMiscastCard(built, table) {
+  const { name, description, effect, transferType, automation, source, miscast } = built;
+  const lines = [
+    `<span><b>${i18n("WFAM.Card.Table")}</b>: ${escape(table.name)} <span class="wfam-source">(${i18n(SOURCE_LABEL[source])})</span></span>`,
+    `<span><b>${i18n("WFAM.Card.Roll")}</b>: ${escape(miscast.roll)}</span>`
   ];
-  let content = await foundry.applications.handlebars.renderTemplate("systems/wfrp4e/templates/chat/post-item.hbs", {
-    item: itemData,
-    img: itemData.img,
-    properties,
-    postQuantity: undefined,
-    retrievedBy: ""
-  });
-  content = content.replace('class="post-item', 'class="post-item wfam-miscast');
-  const speaker = (messageId && game.messages.get(messageId)?.speaker) || ChatMessage.getSpeaker();
+  if (effect) {
+    lines.push(`<span><b>${i18n("WFAM.Card.Automation")}</b>: ${escape(automation)}</span>`);
+    const hint = transferType === "area" ? "WFAM.Card.DragHintArea" : "WFAM.Card.DragHint";
+    lines.push(`<span class="wfam-hint"><i class="fas fa-hand-pointer"></i> ${i18n(hint)}</span>`);
+  }
+  const content = `<div class="post-item wfam-miscast${effect ? " wfam-draggable" : " wfam-narrative"}">
+  <h4>${escape(name)}</h4>
+  <img src="${effect?.img ?? MISCAST_IMG}"/>
+  <div class="card-content">${description}</div>
+  ${lines.join("<br>\n  ")}
+</div>`;
+  const speaker = (miscast.sourceMessageId && game.messages.get(miscast.sourceMessageId)?.speaker) || ChatMessage.getSpeaker();
   return ChatMessage.create(ChatMessage.applyRollMode({
-    type: "item",
     content,
     speaker,
     flavor: i18n("WFAM.Card.Flavor"),
-    flags: { [MODULE_ID]: { miscast: itemData.flags[MODULE_ID].miscast } },
-    system: { itemData, originalItemData: itemData, postQuantity: null }
+    flags: { [MODULE_ID]: { miscast, effect: effect ?? null } }
   }, game.settings.get("core", "rollMode")));
+}
+
+/** Make miscast cards with an effect draggable (same drag-from-chat feel as posted items). */
+function onRenderChatMessage(message, html) {
+  const flags = message.flags?.[MODULE_ID];
+  if (!flags?.effect) return;
+  const el = html.querySelector?.(".wfam-miscast.wfam-draggable");
+  if (!el) return;
+  el.draggable = true;
+  el.addEventListener("dragstart", ev => {
+    // Same shape as the system's own custom chat drags ({type: "custom", custom: "wounds"}).
+    ev.dataTransfer.setData("text/plain", JSON.stringify({
+      type: "custom",
+      custom: DRAG_TYPE,
+      messageId: message.id,
+      sourceMessageId: flags.miscast?.sourceMessageId ?? null
+    }));
+  });
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/* Dropping                                                                                     */
+/* ------------------------------------------------------------------------------------------ */
+
+function effectFromDrop(data) {
+  const message = game.messages.get(data.messageId);
+  const effect = message?.flags?.[MODULE_ID]?.effect;
+  if (!effect) return null;
+  const doc = new CONFIG.ActiveEffect.documentClass(foundry.utils.deepClone(effect));
+  return { doc, sourceMessageId: data.sourceMessageId ?? message.flags[MODULE_ID].miscast?.sourceMessageId ?? null };
+}
+
+/** Apply a miscast effect to an actor (temporary Active Effect), or start area placement. */
+/** The caster an area miscast is measured from: the source cast's speaker, else the drop target. */
+function casterFor(sourceMessageId, actor, point) {
+  const speaker = sourceMessageId ? game.messages.get(sourceMessageId)?.speaker : null;
+  const fromMsg = speaker ? ChatMessage.getSpeakerActor(speaker) : null;
+  if (fromMsg) return fromMsg;
+  if (actor) return actor;
+  const token = canvas?.tokens?.quadtree
+    ? Array.from(canvas.tokens.quadtree.getObjects(new PIXI.Rectangle(point.x, point.y, 0, 0))).at(0) : null;
+  return token?.actor ?? canvas?.tokens?.controlled?.[0]?.actor ?? game.user.character ?? null;
+}
+
+/**
+ * Start the system's area-template placement for an area miscast. Area radii are usually
+ * formulas on the caster (e.g. Willpower yards), which the system can't resolve for an effect
+ * that isn't on an actor yet, so resolve it against the caster here.
+ */
+async function placeArea(doc, point, { caster, sourceMessageId } = {}) {
+  const AreaTemplate = globalThis.warhammer?.apps?.AreaTemplate;
+  const formula = doc.system.transferData.area?.radius;
+  let radius;
+  if (typeof formula === "number") radius = formula;
+  else if (formula && caster) {
+    try { radius = Roll.safeEval(Roll.replaceFormulaData(String(formula), { actor: caster, effect: doc })); } catch (e) { radius = undefined; }
+  }
+  if (!AreaTemplate) return doc.handleCanvasDrop({ x: point.x, y: point.y });
+  const test = sourceMessageId ? game.messages.get(sourceMessageId)?.system?.test : undefined;
+  const effectData = doc.convertToApplied(test);
+  if (caster) foundry.utils.setProperty(effectData, "system.sourceData.actor", caster.uuid);
+  const template = await AreaTemplate.fromEffect({ effectData }, sourceMessageId, radius || undefined);
+  template.drawPreview();
+  template.moveTo(point);
+  return template;
+}
+
+export async function applyMiscast(actor, doc, { sourceMessageId, x, y } = {}) {
+  const type = doc.system?.transferData?.type;
+  if (type === "area") {
+    // Area miscasts centre on the drop point (canvas) or the actor's token (sheet).
+    let point = (x != null && y != null) ? { x, y } : null;
+    if (!point) {
+      const token = actor?.getActiveTokens?.()[0];
+      if (token) point = token.center;
+    }
+    if (!point) return ui.notifications.warn(i18n("WFAM.Drop.AreaNeedsCanvas"));
+    return placeArea(doc, point, { caster: casterFor(sourceMessageId, actor, point), sourceMessageId });
+  }
+  if (!actor) return ui.notifications.warn(i18n("WFAM.Drop.NoActor"));
+  return actor.applyEffect({ effects: [doc], messageId: sourceMessageId ?? undefined });
+}
+
+const isMiscastDrop = data => data?.type === "custom" && data.custom === DRAG_TYPE;
+
+/** warhammer-lib sheets route {type: "custom"} drops to the `${system}:dropCustomData` hook. */
+function onDropCustomData(sheet, data) {
+  if (!isMiscastDrop(data)) return;
+  const actor = sheet?.actor ?? sheet?.document;
+  if (!(actor instanceof Actor)) return;
+  const found = effectFromDrop(data);
+  if (found) applyMiscast(actor, found.doc, { sourceMessageId: found.sourceMessageId }).catch(err => console.error(`${MODULE_ID} |`, err));
+}
+
+/** Core ActorSheet(V2) path, for any sheet that isn't a warhammer-lib sheet. */
+function onDropActorSheetData(actor, sheet, data) {
+  if (!isMiscastDrop(data)) return;
+  const found = effectFromDrop(data);
+  if (found) applyMiscast(actor, found.doc, { sourceMessageId: found.sourceMessageId }).catch(err => console.error(`${MODULE_ID} |`, err));
+  return false;
+}
+
+function onDropCanvasData(canvasObj, data) {
+  if (!isMiscastDrop(data)) return;
+  const found = effectFromDrop(data);
+  if (!found) return false;
+  const type = found.doc.system?.transferData?.type;
+  let actor = null;
+  if (type !== "area") {
+    const token = Array.from(canvas.tokens.quadtree.getObjects(new PIXI.Rectangle(data.x, data.y, 0, 0)))
+      .sort((a, b) => a._lastSortedIndex - b._lastSortedIndex).at(0);
+    actor = token?.actor ?? null;
+  }
+  applyMiscast(actor, found.doc, { sourceMessageId: found.sourceMessageId, x: data.x, y: data.y }).catch(err => console.error(`${MODULE_ID} |`, err));
+  return false;
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/* Forgetfulness                                                                                */
+/* ------------------------------------------------------------------------------------------ */
+
+/** Find the spell from the most recent miscasting test by this actor. */
+function lastMiscastSpell(actor) {
+  for (const m of game.messages.contents.slice().reverse()) {
+    if (m.speaker?.actor !== actor.id) continue;
+    let test;
+    try { test = m.system?.test; } catch { continue; }
+    const r = test?.result;
+    if (!r || !(r.minormis || r.majormis || r.catastrophicmis)) continue;
+    const spell = test.item ?? test.spell;
+    if (spell?.type === "spell") return actor.items.get(spell.id) ?? null;
+  }
+  return null;
+}
+
+/**
+ * Ask which memorised spell is forgotten (defaulting to the spell that miscast) and un-memorise it.
+ * Used by the Forgetfulness effect's immediate script.
+ */
+export async function promptForget(actor, { test, script } = {}) {
+  const isPetty = s => [].concat(s.system.lore?.value ?? []).includes("petty");
+  const memorised = actor.itemTypes.spell.filter(s => s.system.memorized?.value);
+  const spells = memorised.filter(s => !isPetty(s)).concat(memorised.filter(isPetty));
+  const notify = msg => (script?.message ? script.message(msg) : ChatMessage.create({ content: msg, speaker: ChatMessage.getSpeaker({ actor }) }));
+  if (!spells.length) return notify(fmt("WFAM.Forget.None", { actor: escape(actor.name) }));
+  const fromTest = test?.item?.type === "spell" ? actor.items.get(test.item.id) : null;
+  const def = fromTest ?? lastMiscastSpell(actor) ?? spells[0];
+  const options = spells.map(s => `<option value="${s.id}" ${s.id === def?.id ? "selected" : ""}>${escape(s.name)}</option>`).join("");
+  const id = await foundry.applications.api.DialogV2.prompt({
+    window: { title: fmt("WFAM.Forget.Title", { actor: actor.name }) },
+    content: `<p>${i18n("WFAM.Forget.Prompt")}</p><div class="form-group"><select name="spell">${options}</select></div>`,
+    ok: {
+      label: i18n("WFAM.Forget.Confirm"),
+      icon: "fa-solid fa-brain",
+      callback: (event, button) => button.form.elements.spell.value
+    },
+    rejectClose: false
+  }).catch(() => null);
+  if (!id) return notify(fmt("WFAM.Forget.Kept", { actor: escape(actor.name) }));
+  const spell = actor.items.get(id);
+  await spell.update({ "system.memorized.value": false });
+  return notify(fmt("WFAM.Forget.Done", { actor: escape(actor.name), spell: escape(spell.name) }));
 }
 
 /* ------------------------------------------------------------------------------------------ */
 /* Rolling                                                                                      */
 /* ------------------------------------------------------------------------------------------ */
 
-/** Find the rolled TableResult document from a system rollTable() result object. */
 function rolledResult(table, rolled) {
   const id = rolled?.object?._id;
   if (id && table.results?.get) return table.results.get(id);
@@ -200,7 +337,7 @@ function rolledResult(table, rolled) {
 }
 
 /**
- * Roll a specific miscast RollTable (document, uuid, id or name) and post the item card.
+ * Roll a specific miscast RollTable (document, uuid, id or name) and post the card.
  * Mirrors WFRP_Tables.rollTable: formula + modifier, clamped to the table's range.
  */
 export async function rollMiscast(tableRef, { modifier = 0, showRoll = true, messageId, lookup } = {}) {
@@ -216,12 +353,12 @@ export async function rollMiscast(tableRef, { modifier = 0, showRoll = true, mes
   const result = table.getResultsForRoll(total)[0];
   if (!result) return null;
   const display = lookup ?? (modifier ? roll.result : total);
-  const built = await buildMiscastItem(table, result, { roll: display, messageId });
+  const built = await buildMiscast(table, result, { roll: display, messageId });
   if (!built) {
     await ChatMessage.create({ content: await result.getHTML?.() ?? resultDescription(result), speaker: { alias: table.name } });
     return null;
   }
-  return postMiscastCard(built, table, { roll: display, messageId });
+  return postMiscastCard(built, table);
 }
 
 async function formatChatRollWrapper(wrapped, table, options = {}, column = null, ...rest) {
@@ -237,7 +374,7 @@ async function formatChatRollWrapper(wrapped, table, options = {}, column = null
   if (options.lookup && !game.user.isGM) rolled.roll = game.i18n.localize("TABLE.Lookup") + rolled.roll;
 
   const result = rolledResult(tableObject, rolled);
-  const built = result ? await buildMiscastItem(tableObject, result, { roll: rolled.roll, messageId: options.messageId }) : null;
+  const built = result ? await buildMiscast(tableObject, result, { roll: rolled.roll, messageId: options.messageId }) : null;
   if (!built) {
     // Keep the system's behaviour for "no effect" rows and Item-linked results.
     if (result?.documentUuid) {
@@ -246,7 +383,7 @@ async function formatChatRollWrapper(wrapped, table, options = {}, column = null
     }
     return options.returnResult || options.returnObject ? rolled : rolled.result;
   }
-  await postMiscastCard(built, tableObject, { roll: rolled.roll, messageId: options.messageId });
+  await postMiscastCard(built, tableObject);
   return options.returnObject ? { result: "" } : null;
 }
 
@@ -259,7 +396,7 @@ let originalFormatChatRoll = null;
 export function wire() {
   const tables = game.wfrp4e?.tables;
   if (!tables?.formatChatRoll) {
-    console.warn(`${MODULE_ID} | game.wfrp4e.tables.formatChatRoll not found; miscast items disabled.`);
+    console.warn(`${MODULE_ID} | game.wfrp4e.tables.formatChatRoll not found; miscast cards disabled.`);
   }
   else if (game.modules.get("lib-wrapper")?.active && globalThis.libWrapper) {
     globalThis.libWrapper.register(MODULE_ID, "game.wfrp4e.tables.formatChatRoll", formatChatRollWrapper, "MIXED");
@@ -270,8 +407,12 @@ export function wire() {
       return formatChatRollWrapper(originalFormatChatRoll.bind(this), ...args);
     };
   }
+  Hooks.on("renderChatMessageHTML", onRenderChatMessage);
+  Hooks.on(`${game.system.id}:dropCustomData`, onDropCustomData);
+  Hooks.on("dropActorSheetData", onDropActorSheetData);
+  Hooks.on("dropCanvasData", onDropCanvasData);
   const mod = game.modules.get(MODULE_ID);
-  if (mod) mod.api = { rollMiscast, buildMiscastItem, identifyTable, MISCAST_KEYS };
+  if (mod) mod.api = { rollMiscast, buildMiscast, applyMiscast, promptForget, identifyTable, MISCAST_KEYS };
 }
 
 Hooks.once("setup", wire);

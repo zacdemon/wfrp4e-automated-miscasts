@@ -94,6 +94,29 @@ return true;`,
           }
         ]
       }
+    }),
+
+    // WoM Major: the spell being cast is forgotten. Prompts the caster to un-memorise a spell,
+    // defaulting to the spell from the casting test that caused the miscast.
+    "forgetfulness": ({ img, i18n }) => ({
+      name: i18n("WFAM.Effect.Forgetfulness"),
+      img,
+      type: "base",
+      transfer: true,
+      system: {
+        transferData: { type: "document", documentType: "Actor" },
+        scriptData: [
+          {
+            label: i18n("WFAM.Effect.Unmemorise"),
+            trigger: "immediate",
+            script: `const api = game.modules.get("${MODULE_ID}")?.api;
+let test;
+try { test = this.effect.sourceTest; } catch (e) {}
+if (api?.promptForget) await api.promptForget(this.actor, {test, script: this.script});`,
+            options: { deleteEffect: true }
+          }
+        ]
+      }
     })
   }
 };

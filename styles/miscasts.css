@@ -1,2 +1,3 @@
-.chat-message .post-item.wfam-miscast { cursor: grab; }
+.chat-message .post-item.wfam-miscast.wfam-draggable { cursor: grab; }
+.chat-message .post-item.wfam-miscast.wfam-narrative { cursor: default; border-style: solid; }
 .chat-message .post-item.wfam-miscast .wfam-source { opacity: 0.75; font-size: 0.9em; }
