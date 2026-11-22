@@ -1,0 +1,66 @@
+{
+  "id": "wfrp4e-automated-miscasts",
+  "title": "WFRP 4e Automated Miscasts",
+  "description": "Miscast results become draggable item cards, like critical wounds, carrying the Core Rulebook, Winds of Magic and Moo's Homebrew miscast automation onto the character they're dropped on.",
+  "version": "0.1.0",
+  "compatibility": {
+    "minimum": "14",
+    "verified": "14.370"
+  },
+  "relationships": {
+    "systems": [
+      {
+        "id": "wfrp4e",
+        "type": "system",
+        "compatibility": {
+          "minimum": "10.0.0",
+          "verified": "10.1.2"
+        }
+      }
+    ],
+    "requires": [
+      {
+        "id": "wfrp4e-core",
+        "type": "module",
+        "reason": "The Core Rulebook and Moo's Homebrew miscast tables, and their scripted effects, come from the WFRP4e Core Rulebook module."
+      }
+    ],
+    "recommends": [
+      {
+        "id": "wfrp4e-wom",
+        "type": "module",
+        "reason": "Adds the Winds of Magic minor, major and grimoire miscast tables."
+      },
+      {
+        "id": "lib-wrapper",
+        "type": "module",
+        "reason": "Wraps the system's table roll cleanly; the module falls back to patching without it."
+      }
+    ]
+  },
+  "authors": [
+    {
+      "name": "antares",
+      "url": "https://github.com/artptz",
+      "discord": "artantares",
+      "flags": {}
+    }
+  ],
+  "esmodules": [
+    "/scripts/miscasts.mjs"
+  ],
+  "styles": [
+    "/styles/miscasts.css"
+  ],
+  "languages": [
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/en.json"
+    }
+  ],
+  "url": "https://github.com/artptz/wfrp4e-automated-miscasts",
+  "manifest": "https://github.com/artptz/wfrp4e-automated-miscasts/releases/latest/download/module.json",
+  "download": "https://github.com/artptz/wfrp4e-automated-miscasts/releases/latest/download/wfrp4e-automated-miscasts.zip",
+  "flags": {}
+}
