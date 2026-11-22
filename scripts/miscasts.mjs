@@ -14,7 +14,7 @@
  *
  * Card text and effects are read at roll time from the user's installed tables and compendiums.
  */
-import { MODULE_ID, MISCAST_KEYS, SOURCE_TABLES, LINKED_EFFECTS, MODULE_EFFECTS, NO_EFFECT_NAMES } from "./miscast-data.mjs";
+import { MODULE_ID, MISCAST_KEYS, SOURCE_TABLES, LINKED_EFFECTS, MODULE_EFFECTS, OVERRIDE_NAMES, NO_EFFECT_NAMES } from "./miscast-data.mjs";
 
 const i18n = key => game.i18n.localize(key);
 const fmt = (key, data) => game.i18n.format(key, data);
@@ -62,8 +62,77 @@ const SOURCE_LABEL = { core: "WFAM.Source.core", moo: "WFAM.Source.moo", wom: "W
 /* Effect construction                                                                          */
 /* ------------------------------------------------------------------------------------------ */
 
-const resultName = result => (result.name || result.text || "").trim();
 const resultDescription = result => result.description ?? result.text ?? "";
+const hasHTML = s => /<[a-z/][^>]*>?/i.test(s ?? "");
+
+/** Plain text of an HTML fragment (tolerates unclosed tags such as a trailing "</p"). */
+function plainText(html) {
+  const div = document.createElement("div");
+  div.innerHTML = String(html ?? "").replace(/<\/?[a-z]*$/i, "");
+  return div.textContent.replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Name and description of a TableResult. Results imported from older tables (or text results
+ * migrated by Foundry) can hold the whole entry as HTML in the name, e.g.
+ * "<p><strong>Mindnumb</strong>: Uncontrolled magic ...</p>". Take the bold lead-in as the name
+ * and the rest as the description; plain "Name: text" entries are split on the colon.
+ */
+export function parseResult(result) {
+  const rawName = String(result.name ?? "").trim();
+  const rawDesc = String(resultDescription(result) ?? "").trim();
+  if (rawName && !hasHTML(rawName) && rawName.length <= 60 && !/^[^:]{1,40}:\s/.test(rawName)) return { name: rawName, description: rawDesc };
+
+  const html = hasHTML(rawName) || rawName.length > 60 || !rawDesc ? (rawName || rawDesc) : rawDesc;
+  const div = document.createElement("div");
+  div.innerHTML = html.replace(/<\/?[a-z]*$/i, "");
+  let name = "";
+  const lead = div.querySelector("strong, b");
+  if (lead) {
+    name = lead.textContent.replace(/[:.\s]+$/, "").trim();
+    lead.remove();
+  }
+  let rest = div.innerHTML.replace(/^(\s|<p>)*[:.\-–—]\s*/i, m => m.startsWith("<p>") ? "<p>" : "").trim();
+  if (!name) {
+    const text = plainText(html);
+    const m = text.match(/^([^:]{1,40}):\s*(.*)$/s);
+    if (m) { name = m[1].trim(); rest = m[2].trim(); }
+    else { name = text.slice(0, 60); rest = ""; }
+  }
+  // Keep a separate, real description if the name held the HTML and the description is different.
+  const fromDesc = html === rawDesc;
+  let description = !fromDesc && rawDesc && plainText(rawDesc) !== plainText(rawName) ? rawDesc : rest;
+  if (description && !hasHTML(description)) description = `<p>${foundry.utils.escapeHTML(description)}</p>`;
+  if (plainText(description) === "") description = "";
+  return { name, description };
+}
+
+/** The same result in the published compendium table (by source, key and name), cached per table. */
+const canonicalTables = new Map();
+async function canonicalTable(id, info) {
+  if (canonicalTables.has(id)) return canonicalTables.get(id);
+  const doc = await game.packs.get(info.pack)?.getDocument(id).catch(() => null) ?? null;
+  canonicalTables.set(id, doc);
+  return doc;
+}
+async function canonicalResult(source, key, name) {
+  const lname = name.toLowerCase();
+  const order = Object.entries(SOURCE_TABLES).filter(([, i]) => i.key === key && (source === "other" || i.source === source));
+  for (const [id, info] of order) {
+    const table = await canonicalTable(id, info);
+    const match = table?.results.find(r => parseResult(r).name.toLowerCase() === lname);
+    if (match) return Object.assign(match, { _wfamSource: info.source });
+  }
+  return null;
+}
+
+function moduleEffect(source, lname) {
+  const builder = MODULE_EFFECTS[source]?.[lname] ?? MODULE_EFFECTS["*"]?.[lname];
+  if (!builder) return null;
+  const effect = builder({ img: MISCAST_IMG, i18n });
+  foundry.utils.setProperty(effect, `flags.${MODULE_ID}.source`, MODULE_ID);
+  return effect;
+}
 
 /** Copy an ActiveEffect document into plain effect data for the card. */
 function effectData(doc, sourceUuid) {
@@ -80,44 +149,61 @@ function effectData(doc, sourceUuid) {
  *          (a "no effect" row, or a result that links an Item).
  */
 export async function buildMiscast(table, result, { roll, messageId } = {}) {
-  const name = resultName(result);
+  const parsed = parseResult(result);
+  const name = parsed.name;
   if (!name || NO_EFFECT_NAMES.includes(name.toLowerCase())) return null;
-  const { source, key } = identifyTable(table);
+  const lname = name.toLowerCase();
+  const ident = identifyTable(table);
+  const key = ident.key;
+  let source = ident.source;
   let effect = null;
   let automation = null;
+  let linked = null;
+
+  // Results from older or re-imported tables may have lost their effect link (and may not say
+  // which book they're from); find the same result on the published table.
+  let uuid = result.documentUuid;
+  let canonical = null;
+  if (!uuid) {
+    canonical = await canonicalResult(source, key, name);
+    uuid = canonical?.documentUuid ?? null;
+    if (source === "other" && canonical?._wfamSource) source = canonical._wfamSource;
+  }
+  // 0. A module effect that replaces an incomplete core one (Power Drain blocks Channelling too).
+  if (OVERRIDE_NAMES.includes(lname)) effect = moduleEffect(source, lname);
+  if (effect) automation = fmt("WFAM.Auto.Module", { name: effect.name });
 
   // 1. Result links a document: use a linked ActiveEffect (core / WoM automation).
-  let linked = result.documentUuid ? await fromUuid(result.documentUuid).catch(() => null) : null;
-  if (linked?.documentName === "Item") return null; // let the system post that Item itself
-  if (linked?.documentName === "ActiveEffect") {
-    effect = effectData(linked, result.documentUuid);
+  if (uuid) linked = await fromUuid(uuid).catch(() => null);
+  if (linked?.documentName === "Item" && !effect) return null; // let the system post that Item itself
+  if (!effect && linked?.documentName === "ActiveEffect") {
+    effect = effectData(linked, uuid);
     automation = fmt("WFAM.Auto.Linked", { name: linked.name });
   }
 
   // 2. Known text result whose effect ships in core but isn't linked by the table.
   if (!effect) {
-    const uuid = LINKED_EFFECTS[source]?.[name.toLowerCase()];
-    const doc = uuid ? await fromUuid(uuid).catch(() => null) : null;
+    const luuid = LINKED_EFFECTS[source]?.[lname];
+    const doc = luuid ? await fromUuid(luuid).catch(() => null) : null;
     if (doc?.documentName === "ActiveEffect") {
       linked = doc;
-      effect = effectData(doc, uuid);
+      effect = effectData(doc, luuid);
       automation = fmt("WFAM.Auto.Linked", { name: doc.name });
     }
   }
 
   // 3. This module's own effect for a mechanical text result.
   if (!effect) {
-    const builder = MODULE_EFFECTS[source]?.[name.toLowerCase()] ?? MODULE_EFFECTS["*"]?.[name.toLowerCase()];
-    if (builder) {
-      effect = builder({ img: MISCAST_IMG, i18n });
-      foundry.utils.setProperty(effect, `flags.${MODULE_ID}.source`, MODULE_ID);
-      automation = fmt("WFAM.Auto.Module", { name: effect.name });
-    }
+    effect = moduleEffect(source, lname);
+    if (effect) automation = fmt("WFAM.Auto.Module", { name: effect.name });
   }
 
-  let description = resultDescription(result);
-  if (!description && linked?.description) description = linked.description;
+  // Description: the result's own text, unless it only embeds the effect (@Embed) or is empty.
+  let description = parsed.description;
+  if ((!plainText(description) || /@Embed\[/.test(description)) && linked?.documentName === "ActiveEffect" && linked.description) description = linked.description;
+  if (!plainText(description) && canonical) description = parseResult(canonical).description;
   if (effect && !effect.description) effect.description = description;
+  if (effect && (!effect.name || hasHTML(effect.name))) effect.name = name;
 
   const transferType = effect?.system?.transferData?.type ?? null;
   return {
@@ -361,29 +447,31 @@ export async function rollMiscast(tableRef, { modifier = 0, showRoll = true, mes
   return postMiscastCard(built, table);
 }
 
+/**
+ * libWrapper MIXED wrapper. It always chains: for miscast keys it calls the next wrapper (and
+ * finally the system) with `returnResult: true`, so the system does the roll itself (modifiers,
+ * lookups, Item results, below-minimum cancels) and every other module's wrapper still runs.
+ * Only then is the returned result turned into a miscast card.
+ */
 async function formatChatRollWrapper(wrapped, table, options = {}, column = null, ...rest) {
   const T = game.wfrp4e.tables;
   const key = typeof table === "string" ? T.generalizeTable(table) : null;
   if (!key || !MISCAST_KEYS.includes(key) || !game.settings.get(MODULE_ID, "enabled")) return wrapped(table, options, column, ...rest);
 
   const tableObject = T.findTable(key, column);
-  if (!(tableObject instanceof RollTable)) return wrapped(table, options, column, ...rest); // column prompt etc.
+  if (!(tableObject instanceof RollTable) || tableObject.columns) return wrapped(table, options, column, ...rest); // column prompt etc.
 
-  const rolled = await T.rollTable(key, options, column);
-  if (options.cancelUnderMin && T._isBelowMin(tableObject, rolled.total)) return game.i18n.format("TABLE.Cancel", { result: rolled.roll });
-  if (options.lookup && !game.user.isGM) rolled.roll = game.i18n.localize("TABLE.Lookup") + rolled.roll;
+  const rolled = await wrapped(table, { ...options, returnResult: true }, column, ...rest);
+  // null: the system posted an Item result itself. A string: a cancel/notice. Neither is ours.
+  if (!rolled || typeof rolled !== "object") return rolled;
+  const plain = () => (options.returnResult ? rolled : rolled.result);
 
   const result = rolledResult(tableObject, rolled);
   const built = result ? await buildMiscast(tableObject, result, { roll: rolled.roll, messageId: options.messageId }) : null;
-  if (!built) {
-    // Keep the system's behaviour for "no effect" rows and Item-linked results.
-    if (result?.documentUuid) {
-      const doc = await fromUuid(result.documentUuid).catch(() => null);
-      if (doc?.documentName === "Item") { await doc.postItem(undefined, { "flags.wfrp4e.sourceMessageId": options.messageId }); return options.returnObject ? { result: "" } : null; }
-    }
-    return options.returnResult || options.returnObject ? rolled : rolled.result;
-  }
+  if (!built) return plain(); // "no effect" rows keep the system's output
   await postMiscastCard(built, tableObject);
+  // Callers: the table-link click posts a non-empty return, /table (returnResult) skips a falsy
+  // one, and rollToChat (returnObject) reads `.result`. Nothing more to post in any of them.
   return options.returnObject ? { result: "" } : null;
 }
 
@@ -399,7 +487,7 @@ export function wire() {
     console.warn(`${MODULE_ID} | game.wfrp4e.tables.formatChatRoll not found; miscast cards disabled.`);
   }
   else if (game.modules.get("lib-wrapper")?.active && globalThis.libWrapper) {
-    globalThis.libWrapper.register(MODULE_ID, "game.wfrp4e.tables.formatChatRoll", formatChatRollWrapper, "MIXED");
+    globalThis.libWrapper.register(MODULE_ID, "game.wfrp4e.tables.formatChatRoll", formatChatRollWrapper, "WRAPPER");
   }
   else {
     originalFormatChatRoll = tables.formatChatRoll;

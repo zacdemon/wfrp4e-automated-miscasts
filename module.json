@@ -1,7 +1,7 @@
 {
   "id": "wfrp4e-automated-miscasts",
   "title": "WFRP 4e Automated Miscasts",
-  "description": "Miscast results become draggable item cards, like critical wounds, carrying the Core Rulebook, Winds of Magic and Moo's Homebrew miscast automation onto the character they're dropped on.",
+  "description": "Miscast results become chat cards that can be dragged onto a character to apply them as temporary effects, carrying the Core Rulebook, Winds of Magic and Moo's Homebrew miscast automation.",
   "version": "0.1.0",
   "compatibility": {
     "minimum": "14",
@@ -38,14 +38,6 @@
       }
     ]
   },
-  "authors": [
-    {
-      "name": "antares",
-      "url": "https://github.com/artptz",
-      "discord": "artantares",
-      "flags": {}
-    }
-  ],
   "esmodules": [
     "/scripts/miscasts.mjs"
   ],

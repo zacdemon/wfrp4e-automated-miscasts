@@ -27,7 +27,9 @@ When a miscast table is rolled, the result is posted as a **miscast card** in ch
 
 Some text-only results with a clear mechanic get a small effect from this module:
 
-- **Power Drain** (Core and WoM Major): rolls 1d10 minutes for its duration and blocks both Casting and Channelling tests until it ends.
+- **Power Drain** (Core, Moo and WoM Major): rolls 1d10 minutes for its duration and blocks both Casting and Channelling tests until it ends. It replaces core's Moo Power Drain effect, which only blocks Casting.
+- **Rageboil** (Moo Catastrophic): an area of Willpower Bonus yards around the caster. Every other creature caught in it becomes Frenzied for 1d10 rounds, using core's own Frenzy scripts.
+- **Tzeentch's Lash** (Moo Catastrophic): the card's link rolls the immediate Major Miscast, and the effect rolls another Major Miscast at the start of each of the caster's turns for 8 rounds.
 - **Forgetfulness** (WoM Major): asks the caster which memorised spell is forgotten, defaulting to the spell whose casting caused the miscast, then un-memorises it (`system.memorized.value = false`).
 
 ## Other results
@@ -35,6 +37,14 @@ Some text-only results with a clear mechanic get a small effect from this module
 - Narrative results, such as Witchsign, Swarmed, Levitation or Daemonic Possession, become plain chat cards with the result text. They have no effect and can't be dragged.
 - "Roll again" results, such as Multiplying Misfortune, Cascading Chaos or Trick of Fate, are narrative cards that keep their clickable table link.
 - Grimoire "No Effect" rows keep the system's plain output.
+
+## Older or re-imported tables
+
+Some worlds have miscast tables whose results are plain text, with the whole entry as HTML in the name or description (for example `<p><strong>Mindnumb</strong>: Uncontrolled magic ...</p>`), and no link to an effect. The module reads the bold lead-in as the result's name and the rest as its text, then looks the result up by name on the published Core, Moo or Winds of Magic table to find its effect. Those results get the same draggable card and automation as the published tables.
+
+## libWrapper
+
+The module registers a `WRAPPER` on `game.wfrp4e.tables.formatChatRoll` and always calls the next wrapper. For miscast tables it asks the system for the rolled result (`returnResult`), then turns that into the card. Other modules wrapping the same function (Expanded Criticals, Mutant's Handbook) still run, and libWrapper has no conflict to report.
 
 ## Settings
 

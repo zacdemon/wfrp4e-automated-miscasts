@@ -15,16 +15,16 @@ export const MISCAST_KEYS = ["minormis", "majormis", "catastrophicmis", "grimoir
  */
 export const SOURCE_TABLES = {
   // WFRP4e Core Rulebook (wfrp4e-core.tables)
-  iPVwX0ul6lHVbKSX: { source: "core", key: "minormis" },
-  we8Vo5GC3ZsDI7aA: { source: "core", key: "majormis" },
+  iPVwX0ul6lHVbKSX: { source: "core", key: "minormis", pack: "wfrp4e-core.tables" },
+  we8Vo5GC3ZsDI7aA: { source: "core", key: "majormis", pack: "wfrp4e-core.tables" },
   // Moo's Homebrew, shipped inside wfrp4e-core.tables ("Moo's Homebrew" folder)
-  xPenaTMFvD4BVEeK: { source: "moo", key: "minormis" },
-  kuRQ1DeNp2Ar87Ns: { source: "moo", key: "majormis" },
-  SdruU0zkacpwCMJn: { source: "moo", key: "catastrophicmis" },
+  xPenaTMFvD4BVEeK: { source: "moo", key: "minormis", pack: "wfrp4e-core.tables" },
+  kuRQ1DeNp2Ar87Ns: { source: "moo", key: "majormis", pack: "wfrp4e-core.tables" },
+  SdruU0zkacpwCMJn: { source: "moo", key: "catastrophicmis", pack: "wfrp4e-core.tables" },
   // Winds of Magic (wfrp4e-wom.tables)
-  UBStehgyR7pNHuxc: { source: "wom", key: "minormis" },
-  GLUmYTuEmgdvDXJQ: { source: "wom", key: "majormis" },
-  "3KxhbbDdeu4hE73O": { source: "wom", key: "grimoire-miscast" }
+  UBStehgyR7pNHuxc: { source: "wom", key: "minormis", pack: "wfrp4e-wom.tables" },
+  GLUmYTuEmgdvDXJQ: { source: "wom", key: "majormis", pack: "wfrp4e-wom.tables" },
+  "3KxhbbDdeu4hE73O": { source: "wom", key: "grimoire-miscast", pack: "wfrp4e-wom.tables" }
 };
 
 const CORE_EFFECT = id => `Compendium.wfrp4e-core.effects.ActiveEffect.${id}`;
@@ -60,6 +60,61 @@ export const LINKED_EFFECTS = {
  * Each builder returns ActiveEffect data (wfrp4e scriptData format).
  */
 export const MODULE_EFFECTS = {
+  moo: {
+    // Moo Catastrophic: everyone else within Willpower Bonus yards becomes Frenzied for 1d10 rounds.
+    // Area effect; each creature caught gets a temporary effect running core's own Frenzy scripts
+    // (referenced by script id, so nothing is copied). The caster is skipped.
+    "rageboil": ({ img, i18n }) => ({
+      name: i18n("WFAM.Effect.Rageboil"),
+      img,
+      type: "base",
+      transfer: true,
+      system: {
+        transferData: {
+          type: "area",
+          documentType: "Actor",
+          area: { radius: "@actor.system.characteristics.wp.bonus", duration: "instantaneous", shape: { type: "emanation" } }
+        },
+        scriptData: [
+          {
+            label: i18n("WFAM.Effect.Frenzied"),
+            trigger: "immediate",
+            script: `const caster = this.effect.sourceActor;
+if (caster && (caster.uuid === this.actor.uuid || (caster.id === this.actor.id && caster.isToken === this.actor.isToken))) return false;
+let roll = await new Roll("1d10").roll();
+roll.toMessage(this.script.getChatData());
+this.effect.updateSource({duration: {value: roll.total, units: "rounds"}});
+return true;`,
+            options: {}
+          },
+          { label: "Frenzy", trigger: "computeCharacteristics", script: "[Script.91S2GnBFYFbxmOCK]", options: {} },
+          { label: "Disable", trigger: "update", script: "[Script.OeKeQAAcJhdI4Qky]", options: {} }
+        ]
+      }
+    }),
+
+    // Moo Catastrophic: a Major Miscast now (the card's table link) and again at the start of
+    // each of your turns for the next 8 rounds.
+    "tzeentch's lash": ({ img, i18n }) => ({
+      name: i18n("WFAM.Effect.TzeentchsLash"),
+      img,
+      type: "base",
+      transfer: true,
+      duration: { value: 8, units: "rounds" },
+      system: {
+        transferData: { type: "document", documentType: "Actor" },
+        scriptData: [
+          {
+            label: i18n("WFAM.Effect.LashTurn"),
+            trigger: "startTurn",
+            script: `const html = await game.wfrp4e.tables.formatChatRoll("majormis", {showRoll: true});
+if (html) await ChatMessage.create(game.wfrp4e.utility.chatDataSetup(html, game.settings.get("core", "rollMode"), true));`,
+            options: {}
+          }
+        ]
+      }
+    })
+  },
   "*": {
     // Core / WoM Major: you cannot use the casting Talent for 1d10 minutes.
     "power drain": ({ img, i18n }) => ({
@@ -120,6 +175,12 @@ if (api?.promptForget) await api.promptForget(this.actor, {test, script: this.sc
     })
   }
 };
+
+/**
+ * Module effects that replace the effect a table links or core ships, because that one doesn't
+ * cover the full rule. Core's Moo Power Drain only blocks Casting; ours blocks Channelling too.
+ */
+export const OVERRIDE_NAMES = ["power drain"];
 
 /** Result names (lowercased) that mean "nothing happened"; these keep the system's plain output. */
 export const NO_EFFECT_NAMES = ["no effect"];

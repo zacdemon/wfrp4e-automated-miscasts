@@ -27,5 +27,9 @@
   "WFAM.Forget.Confirm": "Un-memorise",
   "WFAM.Forget.Done": "<b>Forgetfulness</b>: {actor} no longer has <b>{spell}</b> memorised.",
   "WFAM.Forget.Kept": "<b>Forgetfulness</b>: {actor} didn't un-memorise a spell.",
-  "WFAM.Forget.None": "<b>Forgetfulness</b>: {actor} has no memorised spells."
+  "WFAM.Forget.None": "<b>Forgetfulness</b>: {actor} has no memorised spells.",
+  "WFAM.Effect.Rageboil": "Rageboil",
+  "WFAM.Effect.Frenzied": "Frenzied (1d10 rounds)",
+  "WFAM.Effect.TzeentchsLash": "Tzeentch's Lash",
+  "WFAM.Effect.LashTurn": "Major Miscast at start of turn"
 }
