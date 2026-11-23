@@ -371,8 +371,8 @@ export const MODULE_PATCHES = {
     "soulpyre": ({ i18n }) => {
       const casterOnly = `const src = this.effect.sourceActor;
 if (src && src.uuid !== this.actor.uuid) return;`;
-      const recipient = `const src = this.effect.sourceActor;
-if (!src || src.uuid === this.actor.uuid) return;`;
+      // Holders of the copy get the aura's owner as sourceActor; the caster's own effect has none.
+      const everyone = `const src = this.effect.sourceActor ?? this.actor;`;
       const scripts = [
         {
           label: i18n("WFAM.Patch.SoulpyreStunned"),
@@ -412,10 +412,10 @@ if (pyre && !pyre.automated) ChatMessage.create({ content: api.soulpyreNote(pyre
           options: {}
         },
         {
-          // Creatures in range: the Lore attribute rides on each round's damage.
+          // The caster and creatures in range: the Lore attribute rides on each round's damage.
           label: i18n("WFAM.Patch.SoulpyreLoreHit"),
           trigger: "startTurn",
-          script: `${recipient}
+          script: `${everyone}
 const pyre = this.effect.getFlag("${MODULE_ID}", "soulpyre");
 if (!pyre?.automated) return;
 const out = await game.modules.get("${MODULE_ID}").api.applyLoreAttribute(this.actor, src, pyre.key, this.effect);

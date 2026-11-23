@@ -87,8 +87,7 @@
   "WFAM.Pyre.Attribute": "Lore attribute",
   "WFAM.Pyre.OnDrop": "from the caster's Lore, set on drop",
   "WFAM.Pyre.None": "none (no Lore)",
-  "WFAM.Pyre.Auto": "{lore}: {what} on creatures in range each round",
-  "WFAM.Pyre.LifeWhat": "removes Fatigued and Bleeding from the living, damages Undead",
+  "WFAM.Pyre.Auto": "{lore}: {what} on the caster and creatures in range each round",
   "WFAM.Pyre.Note": "{lore}: GM note only",
   "WFAM.Pyre.Picked": "(picked from {n} Lores)",
   "WFAM.Pyre.NoteHead": "the Soulpyre carries the Lore of {lore} attribute, which is not automated:",
@@ -100,6 +99,6 @@
   "WFAM.Pyre.Gains": "{actor} gains the {condition} Condition.",
   "WFAM.Pyre.AlreadyFatigued": "{actor} already has a Fatigued Condition from this Soulpyre.",
   "WFAM.Pyre.NotLiving": "{actor} is not living and is not Fatigued.",
-  "WFAM.Pyre.Immune": "{actor} has Arcane Magic ({lore}) and is unaffected.",
-  "WFAM.Pyre.Cleansed": "Life magic floods {actor}: Fatigued and Bleeding Conditions removed."
+  "WFAM.Pyre.Immune": "{actor} casts the Lore of {lore} and is unaffected.",
+  "WFAM.Pyre.NoteLife": "Life magic would strip Fatigued and Bleeding from living creatures (friend or foe) and harm the Undead. That's left to the GM: apply it to whoever you think the Soulpyre's Life magic should touch."
 }

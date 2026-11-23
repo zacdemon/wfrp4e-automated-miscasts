@@ -300,7 +300,7 @@ function soulpyrePreview(built, miscast) {
   const p = soulpyreLore(caster, pick);
   let text;
   if (!p) text = i18n("WFAM.Pyre.None");
-  else if (p.automated) text = fmt("WFAM.Pyre.Auto", { lore: escape(p.label), what: escape(p.condition ?? i18n("WFAM.Pyre.LifeWhat")) });
+  else if (p.automated) text = fmt("WFAM.Pyre.Auto", { lore: escape(p.label), what: escape(p.condition) });
   else text = fmt("WFAM.Pyre.Note", { lore: escape(p.label) });
   if (p?.of > 1) text += ` ${fmt("WFAM.Pyre.Picked", { n: p.of })}`;
   return `<span class="wfam-pyre">${label}: ${text} ${fmt("WFAM.Light.ForCaster", { actor: escape(caster.name) })}</span>`;

@@ -3,7 +3,7 @@
  *
  * Colours for the eight Lores of the Winds, Necromancy and Daemonology are the values the
  * wfrp4e system's own Witchlight script uses. The rest are this module's choices: some from the
- * user's brief (High, Tzeentch, Nurgle / Plague), the others marked "placeholder" until confirmed.
+ * user's brief (High, Tzeentch, Nurgle / Plague) or picked by the user ("user").
  * Lores with several shades pick one with a die rolled on the card (`shade`), so the card and the
  * drop agree.
  */
@@ -32,13 +32,14 @@ export const LORE_COLOURS = {
   // Confident
   slaanesh: { colours: [["#ff69b4", "hot pink"], ["#da70d6", "orchid"], ["#e6a8d7", "pale lilac"]], source: "confident" },
   waaagh: { colours: [["#39ff14", "Waaagh! green"]], aliases: ["littlewaaagh", "bigwaaagh", "waagh"], source: "confident" },
-  // Placeholders, to be confirmed by the user
-  undivided: { colours: [["#c00000", "Khorne red"], ["#9acd32", "Nurgle green"], ["#1e90ff", "Tzeentch blue"], ["#ff69b4", "Slaanesh pink"]], aliases: ["chaos", "chaosundivided"], source: "placeholder" },
-  hedgecraft: { colours: [["#4f7942", "fern green"]], aliases: ["hedge"], source: "placeholder" },
-  witchcraft: { colours: [["#5fd3b3", "corpse-candle green"]], aliases: ["witch"], source: "placeholder" },
-  ruin: { colours: [["#7fff00", "warpstone green"]], source: "placeholder" },
-  stealth: { colours: [["#6e7f6e", "murky grey-green"]], source: "placeholder" },
-  greatmaw: { colours: [["#c0392b", "raw-meat red"]], aliases: ["maw", "gutmagic", "gut"], source: "placeholder" }
+  // Chaos Undivided: one of the four gods' colours (not changed by the user)
+  undivided: { colours: [["#c00000", "Khorne red"], ["#9acd32", "Nurgle green"], ["#1e90ff", "Tzeentch blue"], ["#ff69b4", "Slaanesh pink"]], aliases: ["chaos", "chaosundivided"], source: "confident" },
+  // Picked by the user
+  hedgecraft: { colours: [["#4f7942", "fern green"]], aliases: ["hedge"], source: "user" },
+  witchcraft: { colours: [["#5b3f6e", "murky violet"]], aliases: ["witch"], source: "user" },
+  ruin: { colours: [["#7fff00", "warpstone green"]], source: "user" },
+  stealth: { colours: [["#6e7f6e", "murky grey-green"]], source: "user" },
+  greatmaw: { colours: [["#c0392b", "raw-meat red"]], aliases: ["maw", "gutmagic", "gut"], source: "user" }
 };
 
 /** Magic but no Lore: a colour no Lore uses, picked with a die rolled on the card. */
@@ -157,7 +158,7 @@ export const LORE_ATTRIBUTES = {
   fire: { auto: "ablaze" },
   light: { auto: "blinded" },
   witchcraft: { auto: "bleeding" },
-  life: { auto: "life" },
+  life: { note: "WFAM.Pyre.NoteLife" },
   beasts: { note: "WFAM.Pyre.NoteCaster" },
   heavens: { note: "WFAM.Pyre.NoteArmour" },
   metal: { note: "WFAM.Pyre.NoteArmour" },
@@ -175,7 +176,7 @@ export function soulpyreLore(actor, pick = 1) {
   const key = lores[(pick - 1) % lores.length];
   const def = LORE_ATTRIBUTES[key];
   const sys = !!game.wfrp4e?.config?.loreEffects?.[key];
-  const condition = def?.auto && def.auto !== "life" ? condName(def.auto) : null;
+  const condition = def?.auto ? condName(def.auto) : null;
   return {
     key,
     label: loreLabel(key),
@@ -202,12 +203,15 @@ const hasLoreTalent = (actor, key) => {
 };
 
 /**
- * Apply a Lore attribute to a creature caught by Soulpyre (called each time its damage lands).
+ * Apply a Lore attribute to the caster or a creature caught by Soulpyre (called each time its damage lands).
  * Mirrors the system's lore scripts, plus the riders in the Lore descriptions (Fire / Light don't
  * affect casters of that Lore; Death only keeps one Fatigued from this source at a time).
  * @returns {Promise<string|null>} what happened, for the chat
  */
 export async function applyLoreAttribute(target, caster, key, effect) {
+  // The caster suffers their own Soulpyre too; a Fire or Light caster is by definition a caster
+  // of that Lore, so they're spared Ablaze / Blinded as the Lore rules say.
+  const ownLore = l => hasLoreTalent(target, l) || (caster && target.uuid === caster.uuid && key === l);
   const f = (k, d = {}) => game.i18n.format(k, { actor: target.name, ...d });
   const IGNORE_ALL = game.wfrp4e.config.DAMAGE_TYPE.IGNORE_ALL;
   const undead = hasTrait(target, "NAME.Undead");
@@ -222,11 +226,11 @@ export async function applyLoreAttribute(target, caster, key, effect) {
       return f("WFAM.Pyre.Gains", { condition: condName("fatigued") });
     }
     case "ablaze":
-      if (hasLoreTalent(target, "fire")) return f("WFAM.Pyre.Immune", { lore: loreLabel("fire") });
+      if (ownLore("fire")) return f("WFAM.Pyre.Immune", { lore: loreLabel("fire") });
       await target.addCondition("ablaze");
       return f("WFAM.Pyre.Gains", { condition: condName("ablaze") });
     case "blinded": {
-      if (hasLoreTalent(target, "light")) return f("WFAM.Pyre.Immune", { lore: loreLabel("light") });
+      if (ownLore("light")) return f("WFAM.Pyre.Immune", { lore: loreLabel("light") });
       await target.addCondition("blinded");
       let out = f("WFAM.Pyre.Gains", { condition: condName("blinded") });
       if ((undead || daemonic) && caster) out += " " + await target.applyBasicDamage(caster.system.characteristics.int.bonus, { damageType: IGNORE_ALL, suppressMsg: true });
@@ -235,12 +239,6 @@ export async function applyLoreAttribute(target, caster, key, effect) {
     case "bleeding":
       await target.addCondition("bleeding");
       return f("WFAM.Pyre.Gains", { condition: condName("bleeding") });
-    case "life":
-      if (undead) return caster ? await target.applyBasicDamage(caster.system.characteristics.wp.bonus, { damageType: IGNORE_ALL, suppressMsg: true }) : null;
-      if (daemonic) return null;
-      await target.hasCondition("bleeding")?.delete();
-      await target.hasCondition("fatigued")?.delete();
-      return f("WFAM.Pyre.Cleansed");
     default:
       return null;
   }
