@@ -77,7 +77,6 @@
   "WFAM.Light.Colour": "Light colour",
   "WFAM.Light.NoMagic": "No Magic",
   "WFAM.Light.NoLore": "No Lore",
-  "WFAM.Light.OnDrop": "from the afflicted character's Lore, set on drop",
   "WFAM.Light.ForCaster": "for {actor}; another character uses their own Lore",
   "WFAM.Patch.SoulpyreLore": "Soulpyre carries the caster's Lore attribute",
   "WFAM.Patch.SoulpyreLoreHit": "Lore attribute on creatures in range",
@@ -99,5 +98,5 @@
   "WFAM.Pyre.Immune": "{actor} casts the Lore of {lore} and is unaffected.",
   "WFAM.Pyre.NoteLife": "Life magic would strip Fatigued and Bleeding from living creatures (friend or foe) and harm the Undead. That's left to the GM: apply it to whoever you think the Soulpyre's Life magic should touch.",
   "WFAM.Light.Choose": "{actor} has more than one Lore. Which Lore's light do they glow with?",
-  "WFAM.Light.CasterChooses": "{actor} chooses on drop: {options}"
+  "WFAM.Light.CasterChooses": "<b>Witchlight</b>: {actor} has several Lores and chooses one on drop ({options})."
 }

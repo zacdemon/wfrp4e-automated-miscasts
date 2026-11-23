@@ -252,7 +252,7 @@ async function postMiscastCard(built, table) {
   const ours = effect?.flags?.[MODULE_ID] ?? {};
   if (ours.hideRolls) rolled.splice(0, (built.rolls ?? []).length); // dice that only mean something with the actor
   if (effect && rolled.length) lines.push(`<span class="wfam-rolled-values"><b>${i18n("WFAM.Card.Rolled")}</b>: ${rolled.join("; ")}</span>`);
-  if (ours.preview === "witchlight") lines.push(witchlightPreview(built, miscast));
+  if (ours.preview === "witchlight") { const w = witchlightPreview(built, miscast); if (w) lines.push(w); }
   if (ours.preview === "soulpyre") lines.push(soulpyrePreview(built, miscast));
   if (effect) {
     lines.push(`<span><b>${i18n("WFAM.Card.Automation")}</b>: ${escape(automation)}</span>`);
@@ -278,21 +278,16 @@ async function postMiscastCard(built, table) {
 }
 
 /**
- * Witchlight's colour line on the card. The colour depends on who is afflicted, so it is shown for
- * the caster (when the card knows them) using the card's dice; a drop on anyone else uses that
- * character's Lore with the same dice.
+ * Witchlight on the card: the colour isn't shown (the light on the token says it). Only a caster
+ * with several Lores gets a line, saying they choose one on drop.
  */
 function witchlightPreview(built, miscast) {
-  const caster = (miscast.sourceMessageId && ChatMessage.getSpeakerActor(game.messages.get(miscast.sourceMessageId)?.speaker ?? {}))
-    || (miscast.casterUuid ? fromUuidSync(miscast.casterUuid) : null);
+  const caster = cardCaster(miscast);
+  if (!(caster instanceof Actor)) return null;
   const [shade, pick] = (built.rolls ?? []).map(r => r.total);
-  if (!(caster instanceof Actor)) return `<span class="wfam-light"><b>${i18n("WFAM.Light.Colour")}</b>: ${i18n("WFAM.Light.OnDrop")}</span>`;
   const l = witchlight(caster, { shade, pick });
-  if (l.kind === "lores") {
-    const opts = l.lores.map(x => `<span class="wfam-swatch" style="background:${x.colour}"></span> ${escape(x.label)} (${escape(x.colourName)})`).join(", ");
-    return `<span class="wfam-light"><b>${i18n("WFAM.Light.Colour")}</b>: ${fmt("WFAM.Light.CasterChooses", { actor: escape(caster.name), options: opts })}</span>`;
-  }
-  return `<span class="wfam-light"><b>${i18n("WFAM.Light.Colour")}</b>: <span class="wfam-swatch" style="background:${l.colour}"></span> <b>${escape(l.colourName)}</b> (${escape(l.specifier)}) ${fmt("WFAM.Light.ForCaster", { actor: escape(caster.name) })}</span>`;
+  if (l.kind !== "lores") return null;
+  return `<span class="wfam-light">${fmt("WFAM.Light.CasterChooses", { actor: escape(caster.name), options: l.lores.map(x => escape(x.label)).join(", ") })}</span>`;
 }
 
 /** Soulpyre's Lore attribute line for the caster (when the card knows them), using the card's die. */

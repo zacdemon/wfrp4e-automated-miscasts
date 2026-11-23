@@ -49,7 +49,7 @@ Each Lore has its own colour and light animation (`scripts/miscast-lore.mjs`, `L
 |---|---|---|
 | Fire | #b22222 Aqshy red | torch |
 | Heavens | #87ceeb Azyr sky blue | starlight |
-| Metal | #ee9b3a Chamon molten gold | revolving |
+| Metal | #ee9b3a Chamon molten gold | energy |
 | Shadow | #808080 Ulgu grey | smokepatch |
 | Life | #008000 Ghyran green | wave |
 | Beasts | #a52a2a Ghur brown | pulse |
@@ -60,8 +60,8 @@ Each Lore has its own colour and light animation (`scripts/miscast-lore.mjs`, `L
 | Dark Magic | #9d00ff intense dark purple | emanation |
 | High Magic | every colour of the rainbow | rainbow swirl |
 | Tzeentch | #1f8fff incandescent blue | vortex |
-| Nurgle / Plague | sickly yellow-green, bilious olive or pus green | fairy |
-| Slaanesh | hot pink, orchid or pale lilac | siren |
+| Nurgle / Plague | sickly yellow-green, bilious olive or pus green | fog |
+| Slaanesh | hot pink, orchid or pale lilac | wave |
 | Chaos Undivided | Khorne red, Nurgle green, Tzeentch blue or Slaanesh pink | chroma |
 | Big Waaagh! | #00c853 Waaagh! emerald | energy |
 | Little Waaagh! | #b2f2a0 pale grot green | flame |
@@ -82,7 +82,7 @@ The Lores come from the character's spells (not Petty or "any Lore" spells), Arc
 
 No chat message is posted when the light is applied; the effect's name shows the Lore (e.g. "Witchlight (Fire)").
 
-The card shows the colour for the caster (or, for a caster with several Lores, the choices). Dropped on someone else, it uses that character's Lores with the same dice.
+The card doesn't show the colour; for a caster with several Lores it says they choose one on drop. Dropped on someone else, it uses that character's Lores with the same dice.
 
 ## Other results
 

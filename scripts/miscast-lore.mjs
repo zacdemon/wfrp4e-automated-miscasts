@@ -13,7 +13,7 @@ export const LORE_COLOURS = {
   // wfrp4e system Witchlight / Soulfire colours (the Winds' colours)
   fire: { colours: [["#b22222", "Aqshy red"]], animation: "torch", source: "system" },
   heavens: { colours: [["#87ceeb", "Azyr sky blue"]], animation: "starlight", source: "system" },
-  metal: { colours: [["#ee9b3a", "Chamon molten gold"]], animation: "revolving", source: "system" },
+  metal: { colours: [["#ee9b3a", "Chamon molten gold"]], animation: "energy", source: "system" },
   shadow: { colours: [["#808080", "Ulgu grey"]], animation: "smokepatch", source: "system" },
   life: { colours: [["#008000", "Ghyran green"]], animation: "wave", source: "system" },
   beasts: { colours: [["#a52a2a", "Ghur brown"]], animation: "pulse", source: "system" },
@@ -27,8 +27,8 @@ export const LORE_COLOURS = {
     name: "every colour of the rainbow", animation: "rainbowswirl", aliases: ["qhaysh", "highmagic"], source: "user"
   },
   tzeentch: { colours: [["#1f8fff", "incandescent blue"]], animation: "vortex", source: "user" },
-  nurgle: { colours: [["#9acd32", "sickly yellow-green"], ["#6b8e23", "bilious olive"], ["#a4c639", "pus green"]], animation: "fairy", source: "user" },
-  plague: { colours: [["#9acd32", "sickly yellow-green"], ["#6b8e23", "bilious olive"], ["#a4c639", "pus green"]], animation: "fairy", source: "user" },
+  nurgle: { colours: [["#9acd32", "sickly yellow-green"], ["#6b8e23", "bilious olive"], ["#a4c639", "pus green"]], animation: "fog", source: "user" },
+  plague: { colours: [["#9acd32", "sickly yellow-green"], ["#6b8e23", "bilious olive"], ["#a4c639", "pus green"]], animation: "fog", source: "user" },
   dark: { colours: [["#9d00ff", "intense dark purple"]], animation: "emanation", aliases: ["darkmagic", "druchii", "druchiimagic"], source: "user" },
   bigwaaagh: { colours: [["#00c853", "Waaagh! emerald"]], animation: "energy", aliases: ["waaagh", "waagh", "bigwaagh"], source: "user" },
   littlewaaagh: { colours: [["#b2f2a0", "pale grot green"]], animation: "flame", aliases: ["littlewaagh"], source: "user" },
@@ -38,7 +38,7 @@ export const LORE_COLOURS = {
   stealth: { colours: [["#6e7f6e", "murky grey-green"]], animation: "smokepatch", source: "user" },
   greatmaw: { colours: [["#c0392b", "raw-meat red"]], animation: "pulse", aliases: ["maw", "gutmagic", "gut"], source: "user" },
   // Confident picks
-  slaanesh: { colours: [["#ff69b4", "hot pink"], ["#da70d6", "orchid"], ["#e6a8d7", "pale lilac"]], animation: "siren", source: "confident" },
+  slaanesh: { colours: [["#ff69b4", "hot pink"], ["#da70d6", "orchid"], ["#e6a8d7", "pale lilac"]], animation: "wave", source: "confident" },
   undivided: { colours: [["#c00000", "Khorne red"], ["#9acd32", "Nurgle green"], ["#1e90ff", "Tzeentch blue"], ["#ff69b4", "Slaanesh pink"]], animation: "chroma", aliases: ["chaos", "chaosundivided"], source: "confident" }
 };
 

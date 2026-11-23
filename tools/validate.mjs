@@ -61,7 +61,11 @@ for (const [k, l] of Object.entries(lore.LORE_COLOURS)) {
 }
 for (const [h] of lore.NO_LORE_COLOURS) { if (!isHex(h)) fail(`no-lore colour ${h}`); if (loreHex.has(h.toLowerCase())) fail(`no-lore colour ${h} is a Lore colour`); }
 const ANIMS = ["flame","torch","revolving","siren","pulse","reactivepulse","chroma","wave","fog","sunburst","dome","emanation","hexa","ghost","energy","vortex","witchwave","rainbowswirl","radialrainbow","fairy","grid","starlight","smokepatch"];
-for (const [k, l] of Object.entries(lore.LORE_COLOURS)) if (!ANIMS.includes(l.animation)) fail(`lore ${k}: unknown animation ${l.animation}`);
+const DENY = ["siren", "revolving", "fairy"]; // not wanted by the user
+for (const [k, l] of Object.entries(lore.LORE_COLOURS)) {
+  if (!ANIMS.includes(l.animation)) fail(`lore ${k}: unknown animation ${l.animation}`);
+  if (DENY.includes(l.animation)) fail(`lore ${k}: animation ${l.animation} is not to be used`);
+}
 for (const m of fs.readFileSync(path.join(root, "scripts/miscast-lore.mjs"), "utf8").matchAll(/["'`](WFAM\.[A-Za-z0-9_.]+?)["'`]/g)) used.add(m[1]);
 
 for (const k of used) if (!(k in lang) && !k.endsWith(".")) fail(`missing lang key ${k}`);
