@@ -157,13 +157,51 @@ function beforeEvaluate(roll) {
   if (stored) injectDice(roll, stored.dice);
 }
 
+/** Actors whose miscast effect's immediate scripts are running (innermost last). */
+const actors = [];
+
 async function immediateWrapper(wrapped, ...args) {
-  const stored = this.flags?.[MODULE_ID]?.[FLAG];
-  if (!stored?.length) return wrapped(...args);
-  const queue = clone(stored);
-  contexts.push(queue);
+  const ours = this.flags?.[MODULE_ID];
+  if (!ours) return wrapped(...args);
+  const actor = this.parent?.documentName === "Actor" ? this.parent : this.parent?.parent ?? null;
+  const stored = ours[FLAG];
+  const queue = stored?.length ? clone(stored) : null;
+  if (queue) contexts.push(queue);
+  actors.push(actor);
   try { return await wrapped(...args); }
-  finally { contexts.splice(contexts.indexOf(queue), 1); }
+  finally {
+    if (queue) contexts.splice(contexts.indexOf(queue), 1);
+    actors.splice(actors.lastIndexOf(actor), 1);
+  }
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/* Random critical location fix                                                                 */
+/* ------------------------------------------------------------------------------------------ */
+
+const HIT_LOCATIONS = ["head", "lArm", "rArm", "body", "lLeg", "rLeg"];
+const NOT_LOCATIONS = ["shield", "shielddamage"];
+
+/**
+ * Some system miscast scripts (Aethyric Attack, Moo's Aethyric Assault) pick a "random hit
+ * location" from Object.keys(actor.system.status.armour). That object also holds the
+ * non-location keys `shield` and `shieldDamage`, so 2 picks in 8 ask for the tables
+ * "critshield" / "critshielddamage", which don't exist ("Table critshield not found") and no
+ * Critical Wound is rolled. Re-pick those among the actor's real hit locations; the 6 real
+ * locations stay equally likely.
+ * @returns {{table: string, options: object}|null} replacement arguments, or null to leave the call alone
+ */
+export function fixCritLocation(table, options = {}) {
+  if (typeof table !== "string") return null;
+  const m = /^crit(.+)$/i.exec(table.trim());
+  if (!m || !NOT_LOCATIONS.includes(m[1].toLowerCase())) return null;
+  const actor = actors.at(-1) ?? null;
+  const armour = actor?.system?.status?.armour ?? {};
+  let locs = HIT_LOCATIONS.filter(l => armour[l] && typeof armour[l] === "object" && armour[l].show !== false);
+  if (!locs.length) locs = HIT_LOCATIONS;
+  const location = locs[Math.floor(CONFIG.Dice.randomUniform() * locs.length)];
+  console.warn(`${MODULE_ID} | "${table}" is not a hit location table; rolling crit${location} instead.`);
+  return { table: `crit${location}`, options: { ...options, criticalLocation: location } };
 }
 
 async function pauseWrapper(wrapped, ...args) {

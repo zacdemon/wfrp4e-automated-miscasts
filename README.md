@@ -52,6 +52,8 @@ Dice in a miscast are rolled once, when the card is posted, and the card shows t
 
 Not rolled in advance: Tests (d100), random picks in a script (hit location, colour), rolls each turn (Soulpyre's start-of-turn damage, Tzeentch's Lash's Major Miscast each turn), and formulas that depend on the actor.
 
+**Random critical locations.** The system's Aethyric Attack script (used by Moo's Aethyric Attack, and the same pattern in Moo's Aethyric Assault) picks a random hit location from every key of the actor's armour data. That data also has `shield` and `shieldDamage`, so a quarter of the time it asked for the non-existent tables `critshield` / `critshielddamage` ("Table critshield not found") and no Critical Wound was rolled. The module re-picks those among the actor's real hit locations, so all six locations stay equally likely and the Critical is always rolled.
+
 ## libWrapper
 
 The module registers a `WRAPPER` on `game.wfrp4e.tables.formatChatRoll` and always calls the next wrapper. For miscast tables it asks the system for the rolled result (`returnResult`), then turns that into the card. Other modules wrapping the same function (Expanded Criticals, Mutant's Handbook) still run, and libWrapper has no conflict to report.

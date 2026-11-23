@@ -14,7 +14,7 @@
  *
  * Card text and effects are read at roll time from the user's installed tables and compendiums.
  */
-import { preRoll, installReplay } from "./miscast-rolls.mjs";
+import { preRoll, installReplay, fixCritLocation } from "./miscast-rolls.mjs";
 import { MODULE_ID, MISCAST_KEYS, SOURCE_TABLES, LINKED_EFFECTS, MODULE_EFFECTS, OVERRIDE_NAMES, NO_EFFECT_NAMES } from "./miscast-data.mjs";
 
 const i18n = key => game.i18n.localize(key);
@@ -460,6 +460,8 @@ export async function rollMiscast(tableRef, { modifier = 0, showRoll = true, mes
  * Only then is the returned result turned into a miscast card.
  */
 async function formatChatRollWrapper(wrapped, table, options = {}, column = null, ...rest) {
+  const fixed = fixCritLocation(table, options);
+  if (fixed) ({ table, options } = fixed);
   const T = game.wfrp4e.tables;
   const key = typeof table === "string" ? T.generalizeTable(table) : null;
   if (!key || !MISCAST_KEYS.includes(key) || !game.settings.get(MODULE_ID, "enabled")) return wrapped(table, options, column, ...rest);
