@@ -38,8 +38,8 @@ export const LORE_COLOURS = {
   stealth: { colours: [["#6e7f6e", "murky grey-green"]], animation: "smokepatch", source: "user" },
   greatmaw: { colours: [["#c0392b", "raw-meat red"]], animation: "pulse", aliases: ["maw", "gutmagic", "gut"], source: "user" },
   // Confident picks
-  slaanesh: { colours: [["#ff69b4", "hot pink"], ["#da70d6", "orchid"], ["#e6a8d7", "pale lilac"]], animation: "wave", source: "confident" },
-  undivided: { colours: [["#c00000", "Khorne red"], ["#9acd32", "Nurgle green"], ["#1e90ff", "Tzeentch blue"], ["#ff69b4", "Slaanesh pink"]], animation: "chroma", aliases: ["chaos", "chaosundivided"], source: "confident" }
+  slaanesh: { colours: [["#9932cc", "sensuous purple"], ["#8a2be2", "decadent violet"], ["#b05cc8", "musky amethyst"]], animation: "wave", source: "user" },
+  undivided: { colours: [["#c00000", "Khorne red"], ["#9acd32", "Nurgle green"], ["#1e90ff", "Tzeentch blue"], ["#9932cc", "Slaanesh purple"]], animation: "chroma", aliases: ["chaos", "chaosundivided"], source: "confident" }
 };
 
 /** Magic but no Lore: a colour no Lore uses, picked with a die rolled on the card. */

@@ -61,8 +61,8 @@ Each Lore has its own colour and light animation (`scripts/miscast-lore.mjs`, `L
 | High Magic | every colour of the rainbow | rainbow swirl |
 | Tzeentch | #1f8fff incandescent blue | vortex |
 | Nurgle / Plague | sickly yellow-green, bilious olive or pus green | fog |
-| Slaanesh | hot pink, orchid or pale lilac | wave |
-| Chaos Undivided | Khorne red, Nurgle green, Tzeentch blue or Slaanesh pink | chroma |
+| Slaanesh | sensuous purple, decadent violet or musky amethyst | wave |
+| Chaos Undivided | Khorne red, Nurgle green, Tzeentch blue or Slaanesh purple | chroma |
 | Big Waaagh! | #00c853 Waaagh! emerald | energy |
 | Little Waaagh! | #b2f2a0 pale grot green | flame |
 | Hedgecraft | #4f7942 fern green | dome |
