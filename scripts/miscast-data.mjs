@@ -29,6 +29,81 @@ export const SOURCE_TABLES = {
 
 const CORE_EFFECT = id => `Compendium.wfrp4e-core.effects.ActiveEffect.${id}`;
 
+/** wfrp4e-core injuries a useless limb is treated as (by hit location key). */
+export const AMPUTATIONS = {
+  arm: "Compendium.wfrp4e-core.items.Item.MnMZv7ZXoRqoH9dS", // Amputated Arm
+  leg: "Compendium.wfrp4e-core.items.Item.k00PimCWkff11IA0" // Amputated Leg
+};
+const LIMBS = ["lArm", "rArm", "lLeg", "rLeg"];
+const HIT_LOCATIONS = ["head", "lArm", "rArm", "body", "lLeg", "rLeg"];
+
+/**
+ * Scripts for a miscast that makes one location useless "as if amputated".
+ * The location is a die roll (1d4 over the limbs, or 1d6 over all six hit locations) so it is
+ * rolled with the card and replayed on drop: the card shows the same location that is applied.
+ * Arms and legs get core's Amputated Arm / Amputated Leg injury at that location, created by
+ * the effect (warhammer-lib's addEffectItems), so it is removed again when the effect ends.
+ * @param {object} o
+ * @param {string[]} o.locations hit location keys, in die order
+ * @param {string|null} o.hours duration formula in hours (null: permanent)
+ * @param {string} o.label script label
+ * @param {object} o.noInjury i18n keys (by location key, or `default`) for the GM note when the
+ *        location has no matching injury
+ */
+function uselessLocationScripts({ locations, hours, label, noInjury }) {
+  const die = `1d${locations.length}`;
+  const choose = `const LOCS = ${JSON.stringify(locations)};
+const armour = this.actor.system.status?.armour ?? {};
+let location = await new Roll("${die}").roll();
+location.toMessage(this.script.getChatData({flavor: game.i18n.localize("WFAM.Limb.Location")}));
+let key = LOCS[location.total - 1];
+// A creature without that location (unusual hit locations): use one it has, in the same order.
+if (!armour[key]) {
+  const have = LOCS.filter(k => armour[k]);
+  if (have.length) key = have[(location.total - 1) % have.length];
+}
+const label = game.wfrp4e.config.locations[key] ?? key;
+const update = {name: this.effect.setSpecifier(label), "flags.${MODULE_ID}.location": key, "flags.${MODULE_ID}.baseName": this.effect.name};
+${hours ? `let duration = await new Roll("${hours}").roll();
+duration.toMessage(this.script.getChatData({flavor: game.i18n.localize("WFAM.Card.Duration")}));
+update.duration = {value: duration.total, units: "hours"};
+` : ""}this.effect.updateSource(update);`;
+  const injure = `const key = this.effect.getFlag("${MODULE_ID}", "location");
+if (!key) return;
+const kind = /Arm$/.test(key) ? "arm" : /Leg$/.test(key) ? "leg" : null;
+const uuid = ${JSON.stringify(AMPUTATIONS)}[kind];
+const where = game.wfrp4e.config.locations[key] ?? key;
+const base = this.effect.getFlag("${MODULE_ID}", "baseName") ?? this.effect.name;
+if (!uuid) {
+  const notes = ${JSON.stringify(noInjury)};
+  this.script.message(game.i18n.format(notes[key] ?? notes.default, {name: base, location: where}), {whisper: ChatMessage.getWhisperRecipients("GM")});
+  return;
+}
+const injury = await fromUuid(uuid);
+const items = await this.actor.addEffectItems(uuid, this.effect, {name: \`\${injury.name} (\${base})\`, "system.location.key": key});
+this.script.message(game.i18n.format("${hours ? "WFAM.Limb.Applied" : "WFAM.Limb.AppliedPermanent"}", {injury: items?.[0]?.name ?? injury.name, location: where}));`;
+  return [
+    { label, trigger: "immediate", script: choose, options: {} },
+    { label: "WFAM.Limb.Injury", trigger: "addItems", script: injure, options: {} }
+  ];
+}
+
+const uselessLocationEffect = (nameKey, opts) => ({ img, i18n }) => ({
+  name: i18n(nameKey),
+  img,
+  type: "base",
+  transfer: true,
+  flags: { [MODULE_ID]: { rollText: { [`1d${opts.locations.length}`]: opts.locations } } },
+  system: {
+    transferData: { type: "document", documentType: "Actor" },
+    scriptData: uselessLocationScripts({ ...opts, label: i18n(opts.label) }).map(s => ({ ...s, label: s.label.startsWith("WFAM.") ? i18n(s.label) : s.label }))
+  }
+});
+
+// Core / WoM "Limb Frozen" and Moo "Limbfrozen": a random limb (never the head or body) is
+// useless as if amputated for 1d10 hours.
+const limbFrozen = nameKey => uselessLocationEffect(nameKey, { locations: LIMBS, hours: "1d10", label: "WFAM.Limb.Choose", noInjury: { default: "WFAM.Limb.NoInjury" } });
+
 /**
  * wfrp4e-core ships scripted "Minor (Moo)" effects, but the Moo minor table's results are plain text
  * that don't link to them. Map result name -> core effect so those results get core's own automation.
@@ -157,6 +232,17 @@ else if (choice === "lost") {
     })
   },
   "*": {
+    // Core / WoM Major "Limb Frozen", Moo Major "Limbfrozen": one random limb is useless as if
+    // amputated for 1d10 hours. Core's script picks from every hit location (head and body too)
+    // and applies no injury.
+    "limb frozen": limbFrozen("WFAM.Effect.LimbFrozen"),
+    "limbfrozen": limbFrozen("WFAM.Effect.Limbfrozen"),
+
+    // Moo Catastrophic: one random hit location (head and body included, per the text) withers
+    // and becomes useless, permanently. Arms and legs get the matching amputation injury; the head
+    // (eyes and mouth fuse shut) and body have no system injury, so the GM is told.
+    "witherlimb": uselessLocationEffect("WFAM.Effect.Witherlimb", { locations: HIT_LOCATIONS, hours: null, label: "WFAM.Limb.ChooseLocation", noInjury: { head: "WFAM.Limb.WitherHead", default: "WFAM.Limb.NoInjury" } }),
+
     // Core / WoM Major: you cannot use the casting Talent for 1d10 minutes.
     "power drain": ({ img, i18n }) => ({
       name: i18n("WFAM.Effect.PowerDrain"),
@@ -222,7 +308,48 @@ if (api?.promptForget) await api.promptForget(this.actor, {test, script: this.sc
  * cover the full rule. Core's Moo Power Drain only blocks Casting; ours blocks Channelling too.
  * Core's Called to the Void kills the character when its prompt is closed; ours asks and never assumes.
  */
-export const OVERRIDE_NAMES = ["power drain", "called to the void"];
+export const OVERRIDE_NAMES = ["power drain", "called to the void", "limb frozen", "limbfrozen", "witherlimb"];
+
+/**
+ * Scripts added to a linked core effect that covers most, but not all, of a result.
+ * Moo Catastrophic "Soulpyre": "While the Soulpyre persists, you have a Stunned Condition that
+ * cannot be removed". Core's aura does the light and the damage but never stuns the caster.
+ * The aura also lands on nearby creatures, so each script only acts on the caster.
+ */
+export const MODULE_PATCHES = {
+  "*": {
+    "soulpyre": ({ i18n }) => {
+      const casterOnly = `const src = this.effect.sourceActor;
+if (src && src.uuid !== this.actor.uuid) return;`;
+      return [
+        {
+          label: i18n("WFAM.Patch.SoulpyreStunned"),
+          trigger: "immediate",
+          script: `${casterOnly}
+await this.actor.addCondition("stunned");`,
+          options: {}
+        },
+        {
+          label: i18n("WFAM.Patch.PreventRemoval"),
+          trigger: "preUpdateDocument",
+          script: `${casterOnly}
+if (args.type == "effect" && args.options.action == "delete" && args.document.statuses?.has("stunned")) {
+  this.script.notification(game.i18n.format("WFAM.Patch.CannotRemove", {condition: args.document.name, source: this.effect.name}));
+  return false;
+}`,
+          options: {}
+        },
+        {
+          label: i18n("WFAM.Patch.SoulpyreEnds"),
+          trigger: "deleteEffect",
+          script: `${casterOnly}
+if (this.actor.hasCondition("stunned")) await this.actor.removeCondition("stunned");`,
+          options: {}
+        }
+      ];
+    }
+  }
+};
 
 /** Result names (lowercased) that mean "nothing happened"; these keep the system's plain output. */
 export const NO_EFFECT_NAMES = ["no effect"];

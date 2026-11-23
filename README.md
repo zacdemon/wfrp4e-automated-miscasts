@@ -30,7 +30,13 @@ Some text-only results with a clear mechanic get a small effect from this module
 - **Power Drain** (Core, Moo and WoM Major): rolls 1d10 minutes for its duration and blocks both Casting and Channelling tests until it ends. It replaces core's Moo Power Drain effect, which only blocks Casting.
 - **Rageboil** (Moo Catastrophic): an area of Willpower Bonus yards around the caster. Every other creature caught in it becomes Frenzied for 1d10 rounds, using core's own Frenzy scripts.
 - **Tzeentch's Lash** (Moo Catastrophic): the card's link rolls the immediate Major Miscast, and the effect rolls another Major Miscast at the start of each of the caster's turns for 8 rounds.
+- **Limb Frozen** (Core and WoM Major) and **Limbfrozen** (Moo Major): one random limb (left/right arm or leg, never the head or body) is useless as if amputated for 1d10 hours. The limb (1d4) and the hours are rolled with the card, so the card shows which limb. On drop the limb gets core's **Amputated Arm** or **Amputated Leg** injury at that location (named e.g. "Amputated Arm (Limb Frozen)"), created by the effect, so it is removed when the effect expires or is deleted. Core's own effect picked from every hit location and applied no injury. The injury row shows "Permanent" on the sheet (that is the core item's setting); the miscast effect above it carries the real duration.
+- **Witherlimb** (Moo Catastrophic): one random hit location (1d6; the head and body are included, as the text says) withers and becomes useless, permanently. An arm or leg gets the matching amputation injury, tied to the effect. A head or body has no system injury, so the GM gets a whispered note to resolve it (head: eyes and mouth fuse shut, vision lost forever).
 - **Forgetfulness** (WoM Major): asks the caster which memorised spell is forgotten, defaulting to the spell whose casting caused the miscast, then un-memorises it (`system.memorized.value = false`).
+
+## Additions to core effects
+
+- **Soulpyre** (Moo Catastrophic): core's aura does the light and the start-of-turn damage but never stuns the caster. The module adds the text's "Stunned Condition that cannot be removed" while the Soulpyre persists: the caster gains Stunned, it can't be removed while the effect lasts, and it is removed when the Soulpyre ends. These scripts only act on the caster, not on creatures caught in the aura.
 
 ## Other results
 
@@ -50,7 +56,7 @@ Dice in a miscast are rolled once, when the card is posted, and the card shows t
 - **Card text.** Inline rolls in the result text (`[[1d10]]`, `[[/r 1d10]]`) are replaced with the rolled number. Where a script rolls the same dice, the text and the script share the result, so the card text, the script's roll message and the applied value all match. The numbers on a narrative card no longer change each time it is re-rendered.
 - **Durations from text.** Some effects say "for [[1d10]] rounds/hours" but no script sets a duration (Witchlight, Souldrain, Regurgitation, Soulpyre). For these the rolled number becomes the effect's duration.
 
-Not rolled in advance: Tests (d100), random picks in a script (hit location, colour), rolls each turn (Soulpyre's start-of-turn damage, Tzeentch's Lash's Major Miscast each turn), and formulas that depend on the actor.
+Not rolled in advance: Tests (d100), random picks in a core script (Aethyric Attack's hit location, Witchlight's colour), rolls each turn (Soulpyre's start-of-turn damage, Tzeentch's Lash's Major Miscast each turn), and formulas that depend on the actor.
 
 **Random critical locations.** The system's Aethyric Attack script (used by Moo's Aethyric Attack, and the same pattern in Moo's Aethyric Assault) picks a random hit location from every key of the actor's armour data. That data also has `shield` and `shieldDamage`, so a quarter of the time it asked for the non-existent tables `critshield` / `critshielddamage` ("Table critshield not found") and no Critical Wound was rolled. The module re-picks those among the actor's real hit locations, so all six locations stay equally likely and the Critical is always rolled.
 

@@ -16,7 +16,7 @@
  */
 import { preRoll, installReplay, fixCritLocation } from "./miscast-rolls.mjs";
 import { openSelectDialog, miscastTables } from "./miscast-select.mjs";
-import { MODULE_ID, MISCAST_KEYS, SOURCE_TABLES, LINKED_EFFECTS, MODULE_EFFECTS, OVERRIDE_NAMES, NO_EFFECT_NAMES } from "./miscast-data.mjs";
+import { MODULE_ID, MISCAST_KEYS, SOURCE_TABLES, LINKED_EFFECTS, MODULE_EFFECTS, OVERRIDE_NAMES, MODULE_PATCHES, NO_EFFECT_NAMES } from "./miscast-data.mjs";
 
 const i18n = key => game.i18n.localize(key);
 const fmt = (key, data) => game.i18n.format(key, data);
@@ -200,6 +200,14 @@ export async function buildMiscast(table, result, { roll, messageId } = {}) {
     if (effect) automation = fmt("WFAM.Auto.Module", { name: effect.name });
   }
 
+  // 4. Extra scripts for a linked effect that leaves part of the result out (Soulpyre's Stunned).
+  const patch = MODULE_PATCHES[source]?.[lname] ?? MODULE_PATCHES["*"]?.[lname];
+  if (effect && patch) {
+    const extra = patch({ i18n });
+    foundry.utils.setProperty(effect, "system.scriptData", (effect.system?.scriptData ?? []).concat(extra));
+    automation = fmt("WFAM.Auto.Patched", { name: automation, extra: extra[0].label });
+  }
+
   // Description: the result's own text, unless it only embeds the effect (@Embed) or is empty.
   let description = parsed.description;
   if ((!plainText(description) || /@Embed\[/.test(description)) && linked?.documentName === "ActiveEffect" && linked.description) description = linked.description;
@@ -234,7 +242,7 @@ async function postMiscastCard(built, table) {
     `<span><b>${i18n("WFAM.Card.Table")}</b>: ${escape(table.name)} <span class="wfam-source">(${i18n(SOURCE_LABEL[source])})</span></span>`,
     `<span><b>${i18n("WFAM.Card.Roll")}</b>: ${escape(miscast.roll)}</span>`
   ];
-  const rolled = (built.rolls ?? []).map(r => `${r.label ? `${escape(r.label)} ` : ""}(${escape(r.formula)}): <b>${r.total}</b>`);
+  const rolled = (built.rolls ?? []).map(r => `${r.label ? `${escape(r.label)} ` : ""}(${escape(r.formula)}): <b>${r.total}</b>${r.text ? ` <b>(${escape(r.text)})</b>` : ""}`);
   if (built.rolledDuration) rolled.push(`${i18n("WFAM.Card.Duration")}: <b>${built.rolledDuration.value} ${i18n(`WFAM.Units.${built.rolledDuration.units}`)}</b>`);
   if (effect && rolled.length) lines.push(`<span class="wfam-rolled-values"><b>${i18n("WFAM.Card.Rolled")}</b>: ${rolled.join("; ")}</span>`);
   if (effect) {

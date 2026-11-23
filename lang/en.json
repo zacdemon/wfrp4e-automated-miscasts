@@ -57,5 +57,21 @@
   "WFAM.Void.SpendFate": "Spend 1 Fate point",
   "WFAM.Void.Lost": "Be lost to the Void",
   "WFAM.Void.SpentFate": "{actor} spends a Fate point to escape the Void: +1 Corruption and Stunned.",
-  "WFAM.Void.WasLost": "{actor} is lost to the Realm of Chaos."
+  "WFAM.Void.WasLost": "{actor} is lost to the Realm of Chaos.",
+  "WFAM.Auto.Patched": "{name} + {extra} (module)",
+  "WFAM.Effect.LimbFrozen": "Limb Frozen",
+  "WFAM.Effect.Limbfrozen": "Limbfrozen",
+  "WFAM.Effect.Witherlimb": "Witherlimb",
+  "WFAM.Limb.Choose": "Choose Limb (arms and legs only)",
+  "WFAM.Limb.ChooseLocation": "Choose Hit Location",
+  "WFAM.Limb.Location": "Location",
+  "WFAM.Limb.Injury": "Useless as if amputated",
+  "WFAM.Limb.Applied": "{location} is useless: <b>{injury}</b> applied. It is removed when this effect ends.",
+  "WFAM.Limb.NoInjury": "<b>{name}</b> ({location}): no system injury matches this location, so nothing was added. Resolve it by hand.",
+  "WFAM.Patch.SoulpyreStunned": "Stunned while the Soulpyre persists",
+  "WFAM.Patch.PreventRemoval": "Stunned cannot be removed",
+  "WFAM.Patch.SoulpyreEnds": "Remove Stunned when the Soulpyre ends",
+  "WFAM.Patch.CannotRemove": "{condition} cannot be removed while {source} persists.",
+  "WFAM.Limb.WitherHead": "<b>{name}</b> ({location}): the eyes and mouth fuse shut. The mouth can be cut open, but vision is lost forever. No system injury covers this, so nothing was added. Resolve it by hand.",
+  "WFAM.Limb.AppliedPermanent": "{location} is useless: <b>{injury}</b> applied."
 }

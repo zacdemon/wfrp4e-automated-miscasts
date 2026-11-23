@@ -87,10 +87,14 @@ export async function preRoll(built) {
   const effect = built.effect;
   const pool = [];
   const rolls = [];
+  // Module effects can name what a die picks (e.g. 1d4 -> hit location key), shown on the card.
+  const rollText = effect?.flags?.[MODULE_ID]?.rollText ?? {};
   for (const { formula, label } of effect ? scriptRolls(effect) : []) {
     let roll;
     try { roll = await rollWith(formula); } catch (e) { continue; }
     const entry = { formula, label, sig: diceSig(roll), dice: diceResults(roll), total: roll.total, used: false };
+    const named = rollText[formula]?.[roll.total - 1];
+    if (named) entry.text = game.wfrp4e?.config?.locations?.[named] ?? named;
     pool.push(entry);
     rolls.push(entry);
   }
@@ -128,7 +132,7 @@ export async function preRoll(built) {
     if (effect.description) effect.description = built.description;
     foundry.utils.setProperty(effect, `flags.${MODULE_ID}.${FLAG}`, rolls.map(({ formula, label, sig, dice, total }) => ({ formula, label, sig, dice, total })));
   }
-  built.rolls = rolls.map(({ formula, label, total }) => ({ formula, label, total }));
+  built.rolls = rolls.map(({ formula, label, total, text }) => ({ formula, label, total, ...(text ? { text } : {}) }));
   return built;
 }
 
