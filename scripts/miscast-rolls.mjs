@@ -126,7 +126,10 @@ export async function preRoll(built) {
 
   if (effect) {
     if (duration) {
-      effect.duration = { ...(effect.duration ?? {}), value: duration.value, units: duration.units };
+      // An effect stored without a duration carries expiry: null, which Foundry v14 reads as
+      // "expire on duration alone" with no start round, so it ended as soon as combat started.
+      // Use the default a numeric duration gets (turnStart).
+      effect.duration = { ...(effect.duration ?? {}), value: duration.value, units: duration.units, expiry: effect.duration?.expiry || "turnStart" };
       built.rolledDuration = duration;
     }
     if (effect.description) effect.description = built.description;

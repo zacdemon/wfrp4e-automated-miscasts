@@ -16,6 +16,7 @@
  */
 import { preRoll, installReplay, fixCritLocation } from "./miscast-rolls.mjs";
 import { openSelectDialog, miscastTables } from "./miscast-select.mjs";
+import { witchlight, actorMagic, soulpyreLore, soulpyreNote, applyLoreAttribute } from "./miscast-lore.mjs";
 import { MODULE_ID, MISCAST_KEYS, SOURCE_TABLES, LINKED_EFFECTS, MODULE_EFFECTS, OVERRIDE_NAMES, MODULE_PATCHES, NO_EFFECT_NAMES } from "./miscast-data.mjs";
 
 const i18n = key => game.i18n.localize(key);
@@ -203,7 +204,11 @@ export async function buildMiscast(table, result, { roll, messageId } = {}) {
   // 4. Extra scripts for a linked effect that leaves part of the result out (Soulpyre's Stunned).
   const patch = MODULE_PATCHES[source]?.[lname] ?? MODULE_PATCHES["*"]?.[lname];
   if (effect && patch) {
-    const extra = patch({ i18n });
+    let extra = patch({ i18n });
+    if (!Array.isArray(extra)) {
+      if (extra.flags) foundry.utils.mergeObject(effect, { flags: { [MODULE_ID]: extra.flags } });
+      extra = extra.scripts;
+    }
     foundry.utils.setProperty(effect, "system.scriptData", (effect.system?.scriptData ?? []).concat(extra));
     automation = fmt("WFAM.Auto.Patched", { name: automation, extra: extra[0].label });
   }
@@ -244,7 +249,11 @@ async function postMiscastCard(built, table) {
   ];
   const rolled = (built.rolls ?? []).map(r => `${r.label ? `${escape(r.label)} ` : ""}(${escape(r.formula)}): <b>${r.total}</b>${r.text ? ` <b>(${escape(r.text)})</b>` : ""}`);
   if (built.rolledDuration) rolled.push(`${i18n("WFAM.Card.Duration")}: <b>${built.rolledDuration.value} ${i18n(`WFAM.Units.${built.rolledDuration.units}`)}</b>`);
+  const ours = effect?.flags?.[MODULE_ID] ?? {};
+  if (ours.hideRolls) rolled.splice(0, (built.rolls ?? []).length); // dice that only mean something with the actor
   if (effect && rolled.length) lines.push(`<span class="wfam-rolled-values"><b>${i18n("WFAM.Card.Rolled")}</b>: ${rolled.join("; ")}</span>`);
+  if (ours.preview === "witchlight") lines.push(witchlightPreview(built, miscast));
+  if (ours.preview === "soulpyre") lines.push(soulpyrePreview(built, miscast));
   if (effect) {
     lines.push(`<span><b>${i18n("WFAM.Card.Automation")}</b>: ${escape(automation)}</span>`);
     const hint = transferType === "area" ? "WFAM.Card.DragHintArea" : "WFAM.Card.DragHint";
@@ -266,6 +275,40 @@ async function postMiscastCard(built, table) {
     flavor: i18n("WFAM.Card.Flavor"),
     flags: { [MODULE_ID]: { miscast: { ...miscast, rolls: built.rolls ?? [] }, effect: effect ?? null } }
   }, game.settings.get("core", "rollMode")));
+}
+
+/**
+ * Witchlight's colour line on the card. The colour depends on who is afflicted, so it is shown for
+ * the caster (when the card knows them) using the card's dice; a drop on anyone else uses that
+ * character's Lore with the same dice.
+ */
+function witchlightPreview(built, miscast) {
+  const caster = (miscast.sourceMessageId && ChatMessage.getSpeakerActor(game.messages.get(miscast.sourceMessageId)?.speaker ?? {}))
+    || (miscast.casterUuid ? fromUuidSync(miscast.casterUuid) : null);
+  const [shade, pick] = (built.rolls ?? []).map(r => r.total);
+  if (!(caster instanceof Actor)) return `<span class="wfam-light"><b>${i18n("WFAM.Light.Colour")}</b>: ${i18n("WFAM.Light.OnDrop")}</span>`;
+  const l = witchlight(caster, { shade, pick });
+  return `<span class="wfam-light"><b>${i18n("WFAM.Light.Colour")}</b>: <span class="wfam-swatch" style="background:${l.colour}"></span> <b>${escape(l.colourName)}</b> (${escape(l.specifier)}) ${fmt("WFAM.Light.ForCaster", { actor: escape(caster.name) })}</span>`;
+}
+
+/** Soulpyre's Lore attribute line for the caster (when the card knows them), using the card's die. */
+function soulpyrePreview(built, miscast) {
+  const caster = cardCaster(miscast);
+  const pick = (built.rolls ?? []).find(r => r.formula === "1d1000")?.total ?? 1;
+  const label = `<b>${i18n("WFAM.Pyre.Attribute")}</b>`;
+  if (!(caster instanceof Actor)) return `<span class="wfam-pyre">${label}: ${i18n("WFAM.Pyre.OnDrop")}</span>`;
+  const p = soulpyreLore(caster, pick);
+  let text;
+  if (!p) text = i18n("WFAM.Pyre.None");
+  else if (p.automated) text = fmt("WFAM.Pyre.Auto", { lore: escape(p.label), what: escape(p.condition ?? i18n("WFAM.Pyre.LifeWhat")) });
+  else text = fmt("WFAM.Pyre.Note", { lore: escape(p.label) });
+  if (p?.of > 1) text += ` ${fmt("WFAM.Pyre.Picked", { n: p.of })}`;
+  return `<span class="wfam-pyre">${label}: ${text} ${fmt("WFAM.Light.ForCaster", { actor: escape(caster.name) })}</span>`;
+}
+
+function cardCaster(miscast) {
+  return (miscast.sourceMessageId && ChatMessage.getSpeakerActor(game.messages.get(miscast.sourceMessageId)?.speaker ?? {}))
+    || (miscast.casterUuid ? fromUuidSync(miscast.casterUuid) : null);
 }
 
 /** Make miscast cards with an effect draggable (same drag-from-chat feel as posted items). */
@@ -349,6 +392,10 @@ export async function applyMiscast(actor, doc, { sourceMessageId, casterUuid, x,
     return placeArea(doc, point, { caster: casterFor(sourceMessageId, actor, point, casterUuid), sourceMessageId });
   }
   if (!actor) return ui.notifications.warn(i18n("WFAM.Drop.NoActor"));
+  // An aura (Soulpyre) has to stay an aura so warhammer-lib draws its area round the token and
+  // hands copies to creatures inside; applyEffect would convert it to a plain effect. No message
+  // either: the aura's own scripts treat an effect with a source actor as a copy.
+  if (type === "aura") return actor.applyEffect({ effectData: [doc.toObject()] });
   return actor.applyEffect({ effects: [doc], messageId: sourceMessageId ?? undefined });
 }
 
@@ -567,7 +614,7 @@ export function wire() {
   Hooks.on("dropActorSheetData", onDropActorSheetData);
   Hooks.on("dropCanvasData", onDropCanvasData);
   const mod = game.modules.get(MODULE_ID);
-  if (mod) mod.api = { rollMiscast, buildMiscast, preRoll, openSelectDialog, miscastTables, applyMiscast, promptForget, promptChoice, identifyTable, MISCAST_KEYS };
+  if (mod) mod.api = { rollMiscast, buildMiscast, preRoll, witchlight, actorMagic, soulpyreLore, soulpyreNote, applyLoreAttribute, openSelectDialog, miscastTables, applyMiscast, promptForget, promptChoice, identifyTable, MISCAST_KEYS };
 }
 
 Hooks.once("setup", wire);

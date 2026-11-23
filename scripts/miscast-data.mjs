@@ -31,6 +31,7 @@ const CORE_EFFECT = id => `Compendium.wfrp4e-core.effects.ActiveEffect.${id}`;
 
 /** wfrp4e-core injuries a useless limb is treated as (by hit location key). */
 export const AMPUTATIONS = {
+  eyes: "Compendium.wfrp4e-core.items.Item.weczkAMPlTjX7lqU", // Amputated Eye ("Lost Eye")
   arm: "Compendium.wfrp4e-core.items.Item.MnMZv7ZXoRqoH9dS", // Amputated Arm
   leg: "Compendium.wfrp4e-core.items.Item.k00PimCWkff11IA0" // Amputated Leg
 };
@@ -47,10 +48,11 @@ const HIT_LOCATIONS = ["head", "lArm", "rArm", "body", "lLeg", "rLeg"];
  * @param {string[]} o.locations hit location keys, in die order
  * @param {string|null} o.hours duration formula in hours (null: permanent)
  * @param {string} o.label script label
+ * @param {boolean} [o.headEyes] a head roll costs both eyes (two Amputated Eye injuries)
  * @param {object} o.noInjury i18n keys (by location key, or `default`) for the GM note when the
  *        location has no matching injury
  */
-function uselessLocationScripts({ locations, hours, label, noInjury }) {
+function uselessLocationScripts({ locations, hours, label, noInjury, headEyes = false }) {
   const die = `1d${locations.length}`;
   const choose = `const LOCS = ${JSON.stringify(locations)};
 const armour = this.actor.system.status?.armour ?? {};
@@ -70,7 +72,7 @@ update.duration = {value: duration.total, units: "hours"};
 ` : ""}this.effect.updateSource(update);`;
   const injure = `const key = this.effect.getFlag("${MODULE_ID}", "location");
 if (!key) return;
-const kind = /Arm$/.test(key) ? "arm" : /Leg$/.test(key) ? "leg" : null;
+const kind = /Arm$/.test(key) ? "arm" : /Leg$/.test(key) ? "leg" : (key === "head" && ${!!headEyes}) ? "eyes" : null;
 const uuid = ${JSON.stringify(AMPUTATIONS)}[kind];
 const where = game.wfrp4e.config.locations[key] ?? key;
 const base = this.effect.getFlag("${MODULE_ID}", "baseName") ?? this.effect.name;
@@ -80,8 +82,12 @@ if (!uuid) {
   return;
 }
 const injury = await fromUuid(uuid);
-const items = await this.actor.addEffectItems(uuid, this.effect, {name: \`\${injury.name} (\${base})\`, "system.location.key": key});
-this.script.message(game.i18n.format("${hours ? "WFAM.Limb.Applied" : "WFAM.Limb.AppliedPermanent"}", {injury: items?.[0]?.name ?? injury.name, location: where}));`;
+// Eyes: one Amputated Eye per eye, left and right (the item's own key/value pattern, "lEye" / "Left Eye").
+const merges = kind === "eyes"
+  ? [["l", "Left"], ["r", "Right"]].map(([k, side]) => ({name: \`\${injury.name} (\${base})\`, "system.location.key": k + "Eye", "system.location.value": \`\${game.i18n.localize(side)} \${injury.system.location.value}\`}))
+  : [{name: \`\${injury.name} (\${base})\`, "system.location.key": key}];
+const items = await this.actor.addEffectItems(merges.map(() => uuid), this.effect, merges, {skipLocationValue: kind === "eyes"});
+this.script.message(game.i18n.format("${hours ? "WFAM.Limb.Applied" : "WFAM.Limb.AppliedPermanent"}", {injury: (items ?? []).map(i => i.system.location.value ? \`\${i.name}, \${i.system.location.value}\` : i.name).join("; ") || injury.name, location: where}));`;
   return [
     { label, trigger: "immediate", script: choose, options: {} },
     { label: "WFAM.Limb.Injury", trigger: "addItems", script: injure, options: {} }
@@ -240,8 +246,52 @@ else if (choice === "lost") {
 
     // Moo Catastrophic: one random hit location (head and body included, per the text) withers
     // and becomes useless, permanently. Arms and legs get the matching amputation injury; the head
-    // (eyes and mouth fuse shut) and body have no system injury, so the GM is told.
-    "witherlimb": uselessLocationEffect("WFAM.Effect.Witherlimb", { locations: HIT_LOCATIONS, hours: null, label: "WFAM.Limb.ChooseLocation", noInjury: { head: "WFAM.Limb.WitherHead", default: "WFAM.Limb.NoInjury" } }),
+    // (eyes and mouth fuse shut, vision lost forever) costs both eyes: core's Amputated Eye, left
+    // and right. The body has no system injury, so the GM is told.
+    "witherlimb": uselessLocationEffect("WFAM.Effect.Witherlimb", { locations: HIT_LOCATIONS, hours: null, label: "WFAM.Limb.ChooseLocation", headEyes: true, noInjury: { default: "WFAM.Limb.NoInjury" } }),
+
+    // Core / Moo Minor: you glow with the light of your Lore (as a large bonfire) for 1d10 rounds.
+    // Core's script colours only the eight Winds, Necromancy and Daemonology (anything else got a
+    // random, sometimes empty, colour). This one covers every Lore (scripts/miscast-lore.mjs),
+    // blends the colours of several Lores, gives casters with no Lore a colour no Lore uses and
+    // non-casters a dull white. Its two dice are rolled on the card, so the card's colour and the
+    // applied one match. The rounds come from the card text's inline roll.
+    "witchlight": ({ img, i18n }) => ({
+      name: i18n("WFAM.Effect.Witchlight"),
+      img,
+      type: "base",
+      transfer: true,
+      flags: { [MODULE_ID]: { hideRolls: true, preview: "witchlight" } },
+      system: {
+        transferData: { type: "document", documentType: "Actor" },
+        changes: [
+          { key: "token.light.dim", type: "override", value: 40, phase: "initial" },
+          { key: "token.light.bright", type: "override", value: 20, phase: "initial" },
+          { key: "token.light.animation.type", type: "override", value: "fog", phase: "initial" }
+        ],
+        scriptData: [
+          {
+            label: i18n("WFAM.Light.Colour"),
+            trigger: "immediate",
+            script: `const api = game.modules.get("${MODULE_ID}")?.api;
+let shade = await new Roll("1d1000").roll();
+let pick = await new Roll("1d1000").roll();
+const light = api.witchlight(this.actor, {shade: shade.total, pick: pick.total});
+const keep = (this.effect.system.changes ?? []).filter(c => !["token.light.color", "token.light.animation.type"].includes(c.key));
+this.effect.updateSource({
+  name: this.effect.setSpecifier(light.specifier),
+  "system.changes": keep.concat(
+    {key: "token.light.color", type: "override", value: light.colour, phase: "initial"},
+    {key: "token.light.animation.type", type: "override", value: light.animation, phase: "initial"}
+  ),
+  "flags.${MODULE_ID}.light": light
+});
+this.script.message(game.i18n.format("WFAM.Light.Message", {actor: this.actor.name, colour: light.colourName, hex: light.colour}));`,
+            options: {}
+          }
+        ]
+      }
+    }),
 
     // Core / WoM Major: you cannot use the casting Talent for 1d10 minutes.
     "power drain": ({ img, i18n }) => ({
@@ -308,7 +358,7 @@ if (api?.promptForget) await api.promptForget(this.actor, {test, script: this.sc
  * cover the full rule. Core's Moo Power Drain only blocks Casting; ours blocks Channelling too.
  * Core's Called to the Void kills the character when its prompt is closed; ours asks and never assumes.
  */
-export const OVERRIDE_NAMES = ["power drain", "called to the void", "limb frozen", "limbfrozen", "witherlimb"];
+export const OVERRIDE_NAMES = ["power drain", "called to the void", "limb frozen", "limbfrozen", "witherlimb", "witchlight"];
 
 /**
  * Scripts added to a linked core effect that covers most, but not all, of a result.
@@ -321,7 +371,9 @@ export const MODULE_PATCHES = {
     "soulpyre": ({ i18n }) => {
       const casterOnly = `const src = this.effect.sourceActor;
 if (src && src.uuid !== this.actor.uuid) return;`;
-      return [
+      const recipient = `const src = this.effect.sourceActor;
+if (!src || src.uuid === this.actor.uuid) return;`;
+      const scripts = [
         {
           label: i18n("WFAM.Patch.SoulpyreStunned"),
           trigger: "immediate",
@@ -345,8 +397,33 @@ if (args.type == "effect" && args.options.action == "delete" && args.document.st
           script: `${casterOnly}
 if (this.actor.hasCondition("stunned")) await this.actor.removeCondition("stunned");`,
           options: {}
+        },
+        {
+          // The caster's Lore (one picked with a die rolled on the card if they have several),
+          // stored on the effect so the copies the aura hands out carry it.
+          label: i18n("WFAM.Patch.SoulpyreLore"),
+          trigger: "immediate",
+          script: `${casterOnly}
+let lorePick = await new Roll("1d1000").roll();
+const api = game.modules.get("${MODULE_ID}").api;
+const pyre = api.soulpyreLore(this.actor, lorePick.total);
+this.effect.updateSource({"flags.${MODULE_ID}.soulpyre": pyre});
+if (pyre && !pyre.automated) ChatMessage.create({ content: api.soulpyreNote(pyre, this.effect.name), speaker: ChatMessage.getSpeaker({actor: this.actor}), whisper: ChatMessage.getWhisperRecipients("GM") });`,
+          options: {}
+        },
+        {
+          // Creatures in range: the Lore attribute rides on each round's damage.
+          label: i18n("WFAM.Patch.SoulpyreLoreHit"),
+          trigger: "startTurn",
+          script: `${recipient}
+const pyre = this.effect.getFlag("${MODULE_ID}", "soulpyre");
+if (!pyre?.automated) return;
+const out = await game.modules.get("${MODULE_ID}").api.applyLoreAttribute(this.actor, src, pyre.key, this.effect);
+if (out) this.script.scriptMessage(\`<b>\${pyre.label}</b>: \${out}\`);`,
+          options: {}
         }
       ];
+      return { scripts, flags: { hideRolls: true, preview: "soulpyre" } };
     }
   }
 };

@@ -43,12 +43,26 @@ for (const [source, table] of Object.entries(data.MODULE_EFFECTS)) {
 for (const n of data.OVERRIDE_NAMES) if (!Object.values(data.MODULE_EFFECTS).some(t => t[n])) fail(`OVERRIDE_NAMES "${n}" has no module effect`);
 for (const [source, table] of Object.entries(data.MODULE_PATCHES ?? {})) {
   for (const [name, build] of Object.entries(table)) {
-    for (const s of build({ i18n })) {
+    const built = build({ i18n });
+    for (const s of Array.isArray(built) ? built : built.scripts) {
       compile(`patch ${source}/${name} "${s.label}"`, s.script);
       for (const m of String(s.script).matchAll(/["'`](WFAM\.[A-Za-z0-9_.]+?)["'`]/g)) used.add(m[1]);
     }
   }
 }
+// Lore colours: valid hex, and the "no Lore" colours are not used by any Lore.
+const lore = await import(path.join(root, "scripts/miscast-lore.mjs"));
+for (const [k, a] of Object.entries(lore.LORE_ATTRIBUTES)) if (a.note) used.add(a.note); else if (!a.auto) fail(`lore attribute ${k}: neither auto nor note`);
+const isHex = h => /^#[0-9a-f]{6}$/i.test(h);
+const loreHex = new Set();
+for (const [k, l] of Object.entries(lore.LORE_COLOURS)) {
+  if (!l.colours?.length) fail(`lore ${k}: no colours`);
+  for (const [h, n] of l.colours) { if (!isHex(h) || !n) fail(`lore ${k}: bad colour ${h}`); loreHex.add(h.toLowerCase()); }
+}
+for (const [h] of lore.NO_LORE_COLOURS) { if (!isHex(h)) fail(`no-lore colour ${h}`); if (loreHex.has(h.toLowerCase())) fail(`no-lore colour ${h} is a Lore colour`); }
+if (lore.blend(["#ff0000", "#0000ff"]).length !== 7) fail("blend");
+for (const m of fs.readFileSync(path.join(root, "scripts/miscast-lore.mjs"), "utf8").matchAll(/["'`](WFAM\.[A-Za-z0-9_.]+?)["'`]/g)) used.add(m[1]);
+
 for (const k of used) if (!(k in lang) && !k.endsWith(".")) fail(`missing lang key ${k}`);
 
 if (errors) { console.error(`${errors} problem(s)`); process.exit(1); }
