@@ -42,9 +42,21 @@ Some text-only results with a clear mechanic get a small effect from this module
 
 Some worlds have miscast tables whose results are plain text, with the whole entry as HTML in the name or description (for example `<p><strong>Mindnumb</strong>: Uncontrolled magic ...</p>`), and no link to an effect. The module reads the bold lead-in as the result's name and the rest as its text, then looks the result up by name on the published Core, Moo or Winds of Magic table to find its effect. Those results get the same draggable card and automation as the published tables.
 
+## Rolled values
+
+Dice in a miscast are rolled once, when the card is posted, and the card shows the results ("Rolled (applied on drop)"). Dropping the card applies those same numbers, not new rolls:
+
+- **Effect scripts.** Core, Winds of Magic and module effects roll their numbers (duration, damage, Corruption, Fortune points, crit modifier) in their own scripts. The module reads the formulas from those scripts, rolls them for the card, and stores the dice on the effect (`flags.wfrp4e-automated-miscasts.rolls`). When the effect is applied, the script runs unchanged, but each `Roll` it makes with the same dice gets the stored dice. This only applies while that effect's immediate scripts run. Rolls on other tables inside a script (scatter, critical tables) keep their own dice. Area effects give every creature in the area the same value.
+- **Card text.** Inline rolls in the result text (`[[1d10]]`, `[[/r 1d10]]`) are replaced with the rolled number. Where a script rolls the same dice, the text and the script share the result, so the card text, the script's roll message and the applied value all match. The numbers on a narrative card no longer change each time it is re-rendered.
+- **Durations from text.** Some effects say "for [[1d10]] rounds/hours" but no script sets a duration (Witchlight, Souldrain, Regurgitation, Soulpyre). For these the rolled number becomes the effect's duration.
+
+Not rolled in advance: Tests (d100), random picks in a script (hit location, colour), rolls each turn (Soulpyre's start-of-turn damage, Tzeentch's Lash's Major Miscast each turn), and formulas that depend on the actor.
+
 ## libWrapper
 
 The module registers a `WRAPPER` on `game.wfrp4e.tables.formatChatRoll` and always calls the next wrapper. For miscast tables it asks the system for the rolled result (`returnResult`), then turns that into the card. Other modules wrapping the same function (Expanded Criticals, Mutant's Handbook) still run, and libWrapper has no conflict to report.
+
+For the rolled values it also registers `WRAPPER`s on `Roll#_evaluate`, `Roll#_evaluateSync`, `ActiveEffect#handleImmediateScripts` and `game.wfrp4e.tables.rollTable`. These always call through; they only change dice while a miscast effect's immediate scripts are running.
 
 ## Settings
 
@@ -56,6 +68,7 @@ The module registers a `WRAPPER` on `game.wfrp4e.tables.formatChatRoll` and alwa
 
 - `rollMiscast(table, {modifier, lookup, messageId})` rolls a specific RollTable (document, uuid, id or name) and posts the card.
 - `buildMiscast(table, result)` returns the card data, including the effect data, without posting it.
+- `preRoll(built)` rolls the card's dice into `built` (as `postMiscastCard` does).
 - `applyMiscast(actor, effect, {sourceMessageId, x, y})` applies a miscast effect document to an actor.
 - `promptForget(actor, {test})` opens the Forgetfulness prompt.
 - `identifyTable(table)` returns `{source: "core"|"moo"|"wom"|"other", key}`.

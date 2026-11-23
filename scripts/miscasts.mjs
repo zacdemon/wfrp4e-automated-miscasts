@@ -14,6 +14,7 @@
  *
  * Card text and effects are read at roll time from the user's installed tables and compendiums.
  */
+import { preRoll, installReplay } from "./miscast-rolls.mjs";
 import { MODULE_ID, MISCAST_KEYS, SOURCE_TABLES, LINKED_EFFECTS, MODULE_EFFECTS, OVERRIDE_NAMES, NO_EFFECT_NAMES } from "./miscast-data.mjs";
 
 const i18n = key => game.i18n.localize(key);
@@ -225,11 +226,16 @@ export async function buildMiscast(table, result, { roll, messageId } = {}) {
 const escape = s => foundry.utils.escapeHTML(String(s ?? ""));
 
 async function postMiscastCard(built, table) {
+  // Roll the miscast's dice now; the drop reuses these results (see miscast-rolls.mjs).
+  await preRoll(built);
   const { name, description, effect, transferType, automation, source, miscast } = built;
   const lines = [
     `<span><b>${i18n("WFAM.Card.Table")}</b>: ${escape(table.name)} <span class="wfam-source">(${i18n(SOURCE_LABEL[source])})</span></span>`,
     `<span><b>${i18n("WFAM.Card.Roll")}</b>: ${escape(miscast.roll)}</span>`
   ];
+  const rolled = (built.rolls ?? []).map(r => `${r.label ? `${escape(r.label)} ` : ""}(${escape(r.formula)}): <b>${r.total}</b>`);
+  if (built.rolledDuration) rolled.push(`${i18n("WFAM.Card.Duration")}: <b>${built.rolledDuration.value} ${i18n(`WFAM.Units.${built.rolledDuration.units}`)}</b>`);
+  if (effect && rolled.length) lines.push(`<span class="wfam-rolled-values"><b>${i18n("WFAM.Card.Rolled")}</b>: ${rolled.join("; ")}</span>`);
   if (effect) {
     lines.push(`<span><b>${i18n("WFAM.Card.Automation")}</b>: ${escape(automation)}</span>`);
     const hint = transferType === "area" ? "WFAM.Card.DragHintArea" : "WFAM.Card.DragHint";
@@ -246,7 +252,7 @@ async function postMiscastCard(built, table) {
     content,
     speaker,
     flavor: i18n("WFAM.Card.Flavor"),
-    flags: { [MODULE_ID]: { miscast, effect: effect ?? null } }
+    flags: { [MODULE_ID]: { miscast: { ...miscast, rolls: built.rolls ?? [] }, effect: effect ?? null } }
   }, game.settings.get("core", "rollMode")));
 }
 
@@ -495,12 +501,13 @@ export function wire() {
       return formatChatRollWrapper(originalFormatChatRoll.bind(this), ...args);
     };
   }
+  installReplay();
   Hooks.on("renderChatMessageHTML", onRenderChatMessage);
   Hooks.on(`${game.system.id}:dropCustomData`, onDropCustomData);
   Hooks.on("dropActorSheetData", onDropActorSheetData);
   Hooks.on("dropCanvasData", onDropCanvasData);
   const mod = game.modules.get(MODULE_ID);
-  if (mod) mod.api = { rollMiscast, buildMiscast, applyMiscast, promptForget, identifyTable, MISCAST_KEYS };
+  if (mod) mod.api = { rollMiscast, buildMiscast, preRoll, applyMiscast, promptForget, identifyTable, MISCAST_KEYS };
 }
 
 Hooks.once("setup", wire);

@@ -31,5 +31,11 @@
   "WFAM.Effect.Rageboil": "Rageboil",
   "WFAM.Effect.Frenzied": "Frenzied (1d10 rounds)",
   "WFAM.Effect.TzeentchsLash": "Tzeentch's Lash",
-  "WFAM.Effect.LashTurn": "Major Miscast at start of turn"
+  "WFAM.Effect.LashTurn": "Major Miscast at start of turn",
+  "WFAM.Card.Rolled": "Rolled (applied on drop)",
+  "WFAM.Card.Duration": "Duration",
+  "WFAM.Units.hours": "hours",
+  "WFAM.Units.rounds": "rounds",
+  "WFAM.Units.minutes": "minutes",
+  "WFAM.Units.days": "days"
 }
