@@ -113,6 +113,47 @@ if (html) await ChatMessage.create(game.wfrp4e.utility.chatDataSetup(html, game.
           }
         ]
       }
+    }),
+
+    // Moo Catastrophic: lost to the Realm of Chaos unless you spend a Fate point (then 1 Corruption
+    // and Stunned). Core's version kills the character if its yes/no prompt is closed; this one asks
+    // the actor's owner to choose, and a closed or unanswered prompt changes nothing and tells the GM.
+    "called to the void": ({ img, i18n }) => ({
+      name: i18n("WFAM.Effect.CalledToTheVoid"),
+      img,
+      type: "base",
+      transfer: true,
+      system: {
+        transferData: { type: "document", documentType: "Actor" },
+        scriptData: [
+          {
+            label: i18n("WFAM.Effect.Choice"),
+            trigger: "immediate",
+            script: `const api = game.modules.get("${MODULE_ID}")?.api;
+const L = k => game.i18n.localize(k);
+const fate = Number(this.actor.system.status.fate?.value) || 0;
+const choices = [];
+if (fate > 0) choices.push({ action: "fate", label: L("WFAM.Void.SpendFate"), icon: "fa-solid fa-star" });
+choices.push({ action: "lost", label: L("WFAM.Void.Lost"), icon: "fa-solid fa-skull" });
+const choice = await api.promptChoice(this.actor, {
+  title: this.effect.name,
+  text: game.i18n.format(fate > 0 ? "WFAM.Void.Prompt" : "WFAM.Void.PromptNoFate", { fate }),
+  choices,
+  source: this.effect.name
+});
+if (choice === "fate") {
+  await this.actor.update({ "system.status.fate.value": fate - 1, "system.status.corruption.value": (Number(this.actor.system.status.corruption.value) || 0) + 1 });
+  await this.actor.addCondition("stunned");
+  this.script.message(game.i18n.format("WFAM.Void.SpentFate", { actor: this.actor.name }));
+}
+else if (choice === "lost") {
+  await this.actor.addCondition("dead");
+  this.script.message(game.i18n.format("WFAM.Void.WasLost", { actor: this.actor.name }));
+}`,
+            options: { deleteEffect: true }
+          }
+        ]
+      }
     })
   },
   "*": {
@@ -179,8 +220,9 @@ if (api?.promptForget) await api.promptForget(this.actor, {test, script: this.sc
 /**
  * Module effects that replace the effect a table links or core ships, because that one doesn't
  * cover the full rule. Core's Moo Power Drain only blocks Casting; ours blocks Channelling too.
+ * Core's Called to the Void kills the character when its prompt is closed; ours asks and never assumes.
  */
-export const OVERRIDE_NAMES = ["power drain"];
+export const OVERRIDE_NAMES = ["power drain", "called to the void"];
 
 /** Result names (lowercased) that mean "nothing happened"; these keep the system's plain output. */
 export const NO_EFFECT_NAMES = ["no effect"];

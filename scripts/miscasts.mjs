@@ -400,6 +400,41 @@ function lastMiscastSpell(actor) {
  * Ask which memorised spell is forgotten (defaulting to the spell that miscast) and un-memorise it.
  * Used by the Forgetfulness effect's immediate script.
  */
+/**
+ * Ask the actor's owner to choose between a miscast's outcomes. Effect scripts run on the client
+ * that applies the effect, which warhammer-lib routes to the actor's owner (their player when
+ * online, else the GM), so the prompt shows there. Closing it, or no answer within the time limit,
+ * applies nothing and whispers the GM to resolve it by hand.
+ * @param {Actor} actor
+ * @param {{title: string, text: string, choices: {action: string, label: string, icon?: string}[], source?: string, timeout?: number}} opts
+ * @returns {Promise<string|null>} the chosen action, or null
+ */
+export async function promptChoice(actor, { title, text, choices, source, timeout = 5 * 60 * 1000 } = {}) {
+  let dialog = null;
+  let timer = null;
+  const choice = await foundry.applications.api.DialogV2.wait({
+    window: { title: title ?? source ?? i18n("WFAM.Choice.Title") },
+    position: { width: 440 },
+    content: `<p>${text ?? ""}</p>`,
+    rejectClose: false,
+    render: (event, d) => {
+      dialog = d ?? event?.target ?? null;
+      if (timeout > 0) timer = setTimeout(() => dialog?.close(), timeout);
+    },
+    buttons: choices.map((c, i) => ({ action: c.action, label: c.label, icon: c.icon, default: i === 0, callback: () => c.action }))
+  }).catch(() => null);
+  if (timer) clearTimeout(timer);
+  if (!choice || !choices.some(c => c.action === choice)) {
+    await ChatMessage.create({
+      content: fmt("WFAM.Choice.NoAnswer", { actor: escape(actor?.name), source: escape(source ?? title ?? "") }),
+      speaker: ChatMessage.getSpeaker({ actor }),
+      whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id)
+    });
+    return null;
+  }
+  return choice;
+}
+
 export async function promptForget(actor, { test, script } = {}) {
   const isPetty = s => [].concat(s.system.lore?.value ?? []).includes("petty");
   const memorised = actor.itemTypes.spell.filter(s => s.system.memorized?.value);
@@ -524,7 +559,7 @@ export function wire() {
   Hooks.on("dropActorSheetData", onDropActorSheetData);
   Hooks.on("dropCanvasData", onDropCanvasData);
   const mod = game.modules.get(MODULE_ID);
-  if (mod) mod.api = { rollMiscast, buildMiscast, preRoll, openSelectDialog, miscastTables, applyMiscast, promptForget, identifyTable, MISCAST_KEYS };
+  if (mod) mod.api = { rollMiscast, buildMiscast, preRoll, openSelectDialog, miscastTables, applyMiscast, promptForget, promptChoice, identifyTable, MISCAST_KEYS };
 }
 
 Hooks.once("setup", wire);

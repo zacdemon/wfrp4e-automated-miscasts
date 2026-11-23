@@ -47,5 +47,15 @@
   "WFAM.Select.SelectedToken": "selected",
   "WFAM.Select.Post": "Post Miscast",
   "WFAM.Select.GMOnly": "Only the GM can use Manually Select Miscast.",
-  "WFAM.Select.NoTables": "No miscast tables are installed (Core Rulebook, Winds of Magic or Moo's Homebrew)."
+  "WFAM.Select.NoTables": "No miscast tables are installed (Core Rulebook, Winds of Magic or Moo's Homebrew).",
+  "WFAM.Effect.CalledToTheVoid": "Called to the Void",
+  "WFAM.Effect.Choice": "Choose: spend Fate or be lost",
+  "WFAM.Choice.Title": "Miscast: choose",
+  "WFAM.Choice.NoAnswer": "<b>{source}</b>: {actor} didn't choose an outcome (prompt closed or timed out), so nothing was applied. Resolve it by hand.",
+  "WFAM.Void.Prompt": "You are being dragged into the Realm of Chaos. Spend a Fate point to escape (you gain 1 Corruption and 1 Stunned Condition), or be lost forever. Fate points: {fate}.",
+  "WFAM.Void.PromptNoFate": "You are being dragged into the Realm of Chaos and have no Fate points to spend. You will be lost forever.",
+  "WFAM.Void.SpendFate": "Spend 1 Fate point",
+  "WFAM.Void.Lost": "Be lost to the Void",
+  "WFAM.Void.SpentFate": "{actor} spends a Fate point to escape the Void: +1 Corruption and Stunned.",
+  "WFAM.Void.WasLost": "{actor} is lost to the Realm of Chaos."
 }

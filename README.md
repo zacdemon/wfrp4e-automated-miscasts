@@ -60,6 +60,12 @@ The module registers a `WRAPPER` on `game.wfrp4e.tables.formatChatRoll` and alwa
 
 For the rolled values it also registers `WRAPPER`s on `Roll#_evaluate`, `Roll#_evaluateSync`, `ActiveEffect#handleImmediateScripts` and `game.wfrp4e.tables.rollTable`. These always call through; they only change dice while a miscast effect's immediate scripts are running.
 
+## Choices
+
+When a miscast lets the affected character choose between outcomes, dropping it asks the actor's owner (their player if online, else the GM) with a dialog, then applies the chosen outcome. Closing the dialog, or no answer within 5 minutes, applies nothing and whispers the GM to resolve it by hand.
+
+Across the Core, Winds of Magic and Moo tables, the only such result the system didn't handle safely is Moo's **Called to the Void**: core's version asks "Spend Fate?" and kills the character if the prompt is closed. The module replaces it: *Spend 1 Fate point* (1 Corruption and Stunned) or *Be lost to the Void* (Dead). With no Fate left, only the second is offered. Results that already prompt are kept: Forgetfulness (this module's un-memorise prompt) and Marked by Magic (core's Arcane Marks table choice). "GM's choice" results such as Swarmed stay narrative cards. Other modules or macros can use `api.promptChoice(actor, {title, text, choices, source, timeout})`.
+
 ## Manually Select Miscast (macro)
 
 The module's compendium **Macros (Automated Miscasts)** has a **Manually Select Miscast** macro for testing (GM only). It opens a dialog to pick:
