@@ -54,5 +54,29 @@
   "url": "https://github.com/artptz/wfrp4e-automated-miscasts",
   "manifest": "https://github.com/artptz/wfrp4e-automated-miscasts/releases/latest/download/module.json",
   "download": "https://github.com/artptz/wfrp4e-automated-miscasts/releases/latest/download/wfrp4e-automated-miscasts.zip",
-  "flags": {}
+  "flags": {},
+  "packs": [
+    {
+      "name": "macros",
+      "label": "Macros (Automated Miscasts)",
+      "path": "packs/macros",
+      "type": "Macro",
+      "ownership": {
+        "PLAYER": "NONE",
+        "TRUSTED": "NONE",
+        "ASSISTANT": "OWNER"
+      },
+      "flags": {}
+    }
+  ],
+  "packFolders": [
+    {
+      "name": "WFRP 4e Automated Miscasts",
+      "sorting": "m",
+      "packs": [
+        "macros"
+      ],
+      "folders": []
+    }
+  ]
 }

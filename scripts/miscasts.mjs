@@ -15,6 +15,7 @@
  * Card text and effects are read at roll time from the user's installed tables and compendiums.
  */
 import { preRoll, installReplay, fixCritLocation } from "./miscast-rolls.mjs";
+import { openSelectDialog, miscastTables } from "./miscast-select.mjs";
 import { MODULE_ID, MISCAST_KEYS, SOURCE_TABLES, LINKED_EFFECTS, MODULE_EFFECTS, OVERRIDE_NAMES, NO_EFFECT_NAMES } from "./miscast-data.mjs";
 
 const i18n = key => game.i18n.localize(key);
@@ -247,7 +248,10 @@ async function postMiscastCard(built, table) {
   <div class="card-content">${description}</div>
   ${lines.join("<br>\n  ")}
 </div>`;
-  const speaker = (miscast.sourceMessageId && game.messages.get(miscast.sourceMessageId)?.speaker) || ChatMessage.getSpeaker();
+  const casterActor = miscast.casterUuid ? fromUuidSync(miscast.casterUuid) : null;
+  const speaker = (miscast.sourceMessageId && game.messages.get(miscast.sourceMessageId)?.speaker)
+    || (casterActor ? ChatMessage.getSpeaker({ actor: casterActor, token: casterActor.token ?? undefined }) : null)
+    || ChatMessage.getSpeaker();
   return ChatMessage.create(ChatMessage.applyRollMode({
     content,
     speaker,
@@ -283,15 +287,18 @@ function effectFromDrop(data) {
   const effect = message?.flags?.[MODULE_ID]?.effect;
   if (!effect) return null;
   const doc = new CONFIG.ActiveEffect.documentClass(foundry.utils.deepClone(effect));
-  return { doc, sourceMessageId: data.sourceMessageId ?? message.flags[MODULE_ID].miscast?.sourceMessageId ?? null };
+  const miscast = message.flags[MODULE_ID].miscast ?? {};
+  return { doc, sourceMessageId: data.sourceMessageId ?? miscast.sourceMessageId ?? null, casterUuid: miscast.casterUuid ?? null };
 }
 
 /** Apply a miscast effect to an actor (temporary Active Effect), or start area placement. */
 /** The caster an area miscast is measured from: the source cast's speaker, else the drop target. */
-function casterFor(sourceMessageId, actor, point) {
+function casterFor(sourceMessageId, actor, point, casterUuid = null) {
   const speaker = sourceMessageId ? game.messages.get(sourceMessageId)?.speaker : null;
   const fromMsg = speaker ? ChatMessage.getSpeakerActor(speaker) : null;
   if (fromMsg) return fromMsg;
+  const chosen = casterUuid ? fromUuidSync(casterUuid) : null; // caster picked in "Manually Select Miscast"
+  if (chosen instanceof Actor) return chosen;
   if (actor) return actor;
   const token = canvas?.tokens?.quadtree
     ? Array.from(canvas.tokens.quadtree.getObjects(new PIXI.Rectangle(point.x, point.y, 0, 0))).at(0) : null;
@@ -321,7 +328,7 @@ async function placeArea(doc, point, { caster, sourceMessageId } = {}) {
   return template;
 }
 
-export async function applyMiscast(actor, doc, { sourceMessageId, x, y } = {}) {
+export async function applyMiscast(actor, doc, { sourceMessageId, casterUuid, x, y } = {}) {
   const type = doc.system?.transferData?.type;
   if (type === "area") {
     // Area miscasts centre on the drop point (canvas) or the actor's token (sheet).
@@ -331,7 +338,7 @@ export async function applyMiscast(actor, doc, { sourceMessageId, x, y } = {}) {
       if (token) point = token.center;
     }
     if (!point) return ui.notifications.warn(i18n("WFAM.Drop.AreaNeedsCanvas"));
-    return placeArea(doc, point, { caster: casterFor(sourceMessageId, actor, point), sourceMessageId });
+    return placeArea(doc, point, { caster: casterFor(sourceMessageId, actor, point, casterUuid), sourceMessageId });
   }
   if (!actor) return ui.notifications.warn(i18n("WFAM.Drop.NoActor"));
   return actor.applyEffect({ effects: [doc], messageId: sourceMessageId ?? undefined });
@@ -345,14 +352,14 @@ function onDropCustomData(sheet, data) {
   const actor = sheet?.actor ?? sheet?.document;
   if (!(actor instanceof Actor)) return;
   const found = effectFromDrop(data);
-  if (found) applyMiscast(actor, found.doc, { sourceMessageId: found.sourceMessageId }).catch(err => console.error(`${MODULE_ID} |`, err));
+  if (found) applyMiscast(actor, found.doc, { sourceMessageId: found.sourceMessageId, casterUuid: found.casterUuid }).catch(err => console.error(`${MODULE_ID} |`, err));
 }
 
 /** Core ActorSheet(V2) path, for any sheet that isn't a warhammer-lib sheet. */
 function onDropActorSheetData(actor, sheet, data) {
   if (!isMiscastDrop(data)) return;
   const found = effectFromDrop(data);
-  if (found) applyMiscast(actor, found.doc, { sourceMessageId: found.sourceMessageId }).catch(err => console.error(`${MODULE_ID} |`, err));
+  if (found) applyMiscast(actor, found.doc, { sourceMessageId: found.sourceMessageId, casterUuid: found.casterUuid }).catch(err => console.error(`${MODULE_ID} |`, err));
   return false;
 }
 
@@ -367,7 +374,7 @@ function onDropCanvasData(canvasObj, data) {
       .sort((a, b) => a._lastSortedIndex - b._lastSortedIndex).at(0);
     actor = token?.actor ?? null;
   }
-  applyMiscast(actor, found.doc, { sourceMessageId: found.sourceMessageId, x: data.x, y: data.y }).catch(err => console.error(`${MODULE_ID} |`, err));
+  applyMiscast(actor, found.doc, { sourceMessageId: found.sourceMessageId, casterUuid: found.casterUuid, x: data.x, y: data.y }).catch(err => console.error(`${MODULE_ID} |`, err));
   return false;
 }
 
@@ -432,7 +439,7 @@ function rolledResult(table, rolled) {
  * Roll a specific miscast RollTable (document, uuid, id or name) and post the card.
  * Mirrors WFRP_Tables.rollTable: formula + modifier, clamped to the table's range.
  */
-export async function rollMiscast(tableRef, { modifier = 0, showRoll = true, messageId, lookup } = {}) {
+export async function rollMiscast(tableRef, { modifier = 0, showRoll = true, messageId, lookup, actor } = {}) {
   let table = tableRef;
   if (typeof tableRef === "string") table = tableRef.includes(".") ? await fromUuid(tableRef) : (game.tables.get(tableRef) ?? game.tables.getName(tableRef));
   if (!(table instanceof RollTable)) throw new Error(`${MODULE_ID} | table not found: ${tableRef}`);
@@ -447,9 +454,17 @@ export async function rollMiscast(tableRef, { modifier = 0, showRoll = true, mes
   const display = lookup ?? (modifier ? roll.result : total);
   const built = await buildMiscast(table, result, { roll: display, messageId });
   if (!built) {
+    // Same as the system: a result that links an Item posts that Item, anything else its text.
+    const doc = result.documentUuid ? await fromUuid(result.documentUuid).catch(() => null) : null;
+    if (doc?.documentName === "Item" && doc.postItem) {
+      await doc.postItem(undefined, messageId ? { "flags.wfrp4e.sourceMessageId": messageId } : {});
+      return null;
+    }
     await ChatMessage.create({ content: await result.getHTML?.() ?? resultDescription(result), speaker: { alias: table.name } });
     return null;
   }
+  const caster = typeof actor === "string" ? fromUuidSync(actor) : actor;
+  if (caster instanceof Actor && !messageId) built.miscast.casterUuid = caster.uuid;
   return postMiscastCard(built, table);
 }
 
@@ -509,7 +524,7 @@ export function wire() {
   Hooks.on("dropActorSheetData", onDropActorSheetData);
   Hooks.on("dropCanvasData", onDropCanvasData);
   const mod = game.modules.get(MODULE_ID);
-  if (mod) mod.api = { rollMiscast, buildMiscast, preRoll, applyMiscast, promptForget, identifyTable, MISCAST_KEYS };
+  if (mod) mod.api = { rollMiscast, buildMiscast, preRoll, openSelectDialog, miscastTables, applyMiscast, promptForget, identifyTable, MISCAST_KEYS };
 }
 
 Hooks.once("setup", wire);

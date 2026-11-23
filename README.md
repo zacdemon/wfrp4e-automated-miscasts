@@ -60,6 +60,18 @@ The module registers a `WRAPPER` on `game.wfrp4e.tables.formatChatRoll` and alwa
 
 For the rolled values it also registers `WRAPPER`s on `Roll#_evaluate`, `Roll#_evaluateSync`, `ActiveEffect#handleImmediateScripts` and `game.wfrp4e.tables.rollTable`. These always call through; they only change dice while a miscast effect's immediate scripts are running.
 
+## Manually Select Miscast (macro)
+
+The module's compendium **Macros (Automated Miscasts)** has a **Manually Select Miscast** macro for testing (GM only). It opens a dialog to pick:
+
+- a miscast table: every installed miscast table (Core Minor/Major, Winds of Magic Minor/Major/Grimoire, Moo's Minor/Major/Catastrophic, and any other table with a miscast key), from the world or a compendium;
+- a result from that table (range and name; the list follows the table);
+- optionally a caster (defaults to the selected token, else your character). The card speaks as the caster, and area miscasts measure their radius from them.
+
+It posts exactly the card a natural roll of that result would: pre-rolled dice, drag to apply, area placement, narrative cards and "roll again" links. Same as `game.modules.get("wfrp4e-automated-miscasts").api.openSelectDialog({table, actor})`.
+
+The pack is built from `src/packs/macros` with `npm install && npm run build` (`tools/build.sh` does this before zipping).
+
 ## Settings
 
 - **Post miscasts as draggable cards** (world, on by default). Turn it off to get the system's plain text results.
@@ -68,7 +80,8 @@ For the rolled values it also registers `WRAPPER`s on `Roll#_evaluate`, `Roll#_e
 
 `game.modules.get("wfrp4e-automated-miscasts").api`
 
-- `rollMiscast(table, {modifier, lookup, messageId})` rolls a specific RollTable (document, uuid, id or name) and posts the card.
+- `rollMiscast(table, {modifier, lookup, messageId, actor})` rolls a specific RollTable (document, uuid, id or name) and posts the card; `lookup` picks the result, `actor` sets the caster.
+- `openSelectDialog({table, actor})` opens the Manually Select Miscast dialog; `miscastTables()` lists the installed miscast tables.
 - `buildMiscast(table, result)` returns the card data, including the effect data, without posting it.
 - `preRoll(built)` rolls the card's dice into `built` (as `postMiscastCard` does).
 - `applyMiscast(actor, effect, {sourceMessageId, x, y})` applies a miscast effect document to an actor.

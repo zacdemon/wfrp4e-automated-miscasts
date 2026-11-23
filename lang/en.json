@@ -37,5 +37,15 @@
   "WFAM.Units.hours": "hours",
   "WFAM.Units.rounds": "rounds",
   "WFAM.Units.minutes": "minutes",
-  "WFAM.Units.days": "days"
+  "WFAM.Units.days": "days",
+  "WFAM.Select.Title": "Manually Select Miscast",
+  "WFAM.Select.Hint": "For testing: post the card for a specific result, exactly as if it had been rolled.",
+  "WFAM.Select.Table": "Miscast table",
+  "WFAM.Select.Result": "Result",
+  "WFAM.Select.Caster": "Caster",
+  "WFAM.Select.NoCaster": "None (default speaker)",
+  "WFAM.Select.SelectedToken": "selected",
+  "WFAM.Select.Post": "Post Miscast",
+  "WFAM.Select.GMOnly": "Only the GM can use Manually Select Miscast.",
+  "WFAM.Select.NoTables": "No miscast tables are installed (Core Rulebook, Winds of Magic or Moo's Homebrew)."
 }
