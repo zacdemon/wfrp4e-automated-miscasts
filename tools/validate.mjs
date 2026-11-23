@@ -60,7 +60,8 @@ for (const [k, l] of Object.entries(lore.LORE_COLOURS)) {
   for (const [h, n] of l.colours) { if (!isHex(h) || !n) fail(`lore ${k}: bad colour ${h}`); loreHex.add(h.toLowerCase()); }
 }
 for (const [h] of lore.NO_LORE_COLOURS) { if (!isHex(h)) fail(`no-lore colour ${h}`); if (loreHex.has(h.toLowerCase())) fail(`no-lore colour ${h} is a Lore colour`); }
-if (lore.blend(["#ff0000", "#0000ff"]).length !== 7) fail("blend");
+const ANIMS = ["flame","torch","revolving","siren","pulse","reactivepulse","chroma","wave","fog","sunburst","dome","emanation","hexa","ghost","energy","vortex","witchwave","rainbowswirl","radialrainbow","fairy","grid","starlight","smokepatch"];
+for (const [k, l] of Object.entries(lore.LORE_COLOURS)) if (!ANIMS.includes(l.animation)) fail(`lore ${k}: unknown animation ${l.animation}`);
 for (const m of fs.readFileSync(path.join(root, "scripts/miscast-lore.mjs"), "utf8").matchAll(/["'`](WFAM\.[A-Za-z0-9_.]+?)["'`]/g)) used.add(m[1]);
 
 for (const k of used) if (!(k in lang) && !k.endsWith(".")) fail(`missing lang key ${k}`);

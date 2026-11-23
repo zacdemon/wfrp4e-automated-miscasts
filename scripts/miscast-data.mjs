@@ -253,9 +253,10 @@ else if (choice === "lost") {
     // Core / Moo Minor: you glow with the light of your Lore (as a large bonfire) for 1d10 rounds.
     // Core's script colours only the eight Winds, Necromancy and Daemonology (anything else got a
     // random, sometimes empty, colour). This one covers every Lore (scripts/miscast-lore.mjs),
-    // blends the colours of several Lores, gives casters with no Lore a colour no Lore uses and
-    // non-casters a dull white. Its two dice are rolled on the card, so the card's colour and the
-    // applied one match. The rounds come from the card text's inline roll.
+    // gives each Lore its own colour and light animation, asks a caster with several Lores which
+    // one glows (no answer: the card's die picks), gives casters with no Lore a colour no Lore
+    // uses and non-casters a dull white. Its two dice are rolled on the card, so the card and the
+    // applied light match. The rounds come from the card text's inline roll.
     "witchlight": ({ img, i18n }) => ({
       name: i18n("WFAM.Effect.Witchlight"),
       img,
@@ -276,7 +277,17 @@ else if (choice === "lost") {
             script: `const api = game.modules.get("${MODULE_ID}")?.api;
 let shade = await new Roll("1d1000").roll();
 let pick = await new Roll("1d1000").roll();
-const light = api.witchlight(this.actor, {shade: shade.total, pick: pick.total});
+let light = api.witchlight(this.actor, {shade: shade.total, pick: pick.total});
+if (light.kind === "lores") {
+  const sw = l => \`<li><span class="wfam-swatch" style="background:\${l.colour}"></span> <b>\${l.label}</b>: \${l.colourName}</li>\`;
+  const choice = await api.promptChoice(this.actor, {
+    title: this.effect.name,
+    text: game.i18n.format("WFAM.Light.Choose", {actor: this.actor.name}) + "<ul class='wfam-light-choices'>" + light.lores.map(sw).join("") + "</ul>",
+    choices: light.lores.map(l => ({ action: l.key, label: l.label, icon: "fa-solid fa-lightbulb" })),
+    source: this.effect.name
+  });
+  light = api.witchlightChoice(light, choice);
+}
 const keep = (this.effect.system.changes ?? []).filter(c => !["token.light.color", "token.light.animation.type"].includes(c.key));
 this.effect.updateSource({
   name: this.effect.setSpecifier(light.specifier),
@@ -285,8 +296,7 @@ this.effect.updateSource({
     {key: "token.light.animation.type", type: "override", value: light.animation, phase: "initial"}
   ),
   "flags.${MODULE_ID}.light": light
-});
-this.script.message(game.i18n.format("WFAM.Light.Message", {actor: this.actor.name, colour: light.colourName, hex: light.colour}));`,
+});`,
             options: {}
           }
         ]

@@ -1,4 +1,5 @@
 .chat-message .post-item.wfam-miscast.wfam-draggable { cursor: grab; }
 .chat-message .post-item.wfam-miscast.wfam-narrative { cursor: default; border-style: solid; }
 .chat-message .post-item.wfam-miscast .wfam-source { opacity: 0.75; font-size: 0.9em; }
-.wfam-miscast .wfam-swatch { display: inline-block; width: 0.9em; height: 0.9em; border: 1px solid #000; border-radius: 50%; vertical-align: middle; }
+.wfam-swatch { display: inline-block; width: 0.9em; height: 0.9em; border: 1px solid #000; border-radius: 50%; vertical-align: middle; }
+.wfam-light-choices { list-style: none; padding-left: 0.5em; }

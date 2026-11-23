@@ -16,7 +16,7 @@
  */
 import { preRoll, installReplay, fixCritLocation } from "./miscast-rolls.mjs";
 import { openSelectDialog, miscastTables } from "./miscast-select.mjs";
-import { witchlight, actorMagic, soulpyreLore, soulpyreNote, applyLoreAttribute } from "./miscast-lore.mjs";
+import { witchlight, witchlightChoice, actorMagic, soulpyreLore, soulpyreNote, applyLoreAttribute } from "./miscast-lore.mjs";
 import { MODULE_ID, MISCAST_KEYS, SOURCE_TABLES, LINKED_EFFECTS, MODULE_EFFECTS, OVERRIDE_NAMES, MODULE_PATCHES, NO_EFFECT_NAMES } from "./miscast-data.mjs";
 
 const i18n = key => game.i18n.localize(key);
@@ -288,6 +288,10 @@ function witchlightPreview(built, miscast) {
   const [shade, pick] = (built.rolls ?? []).map(r => r.total);
   if (!(caster instanceof Actor)) return `<span class="wfam-light"><b>${i18n("WFAM.Light.Colour")}</b>: ${i18n("WFAM.Light.OnDrop")}</span>`;
   const l = witchlight(caster, { shade, pick });
+  if (l.kind === "lores") {
+    const opts = l.lores.map(x => `<span class="wfam-swatch" style="background:${x.colour}"></span> ${escape(x.label)} (${escape(x.colourName)})`).join(", ");
+    return `<span class="wfam-light"><b>${i18n("WFAM.Light.Colour")}</b>: ${fmt("WFAM.Light.CasterChooses", { actor: escape(caster.name), options: opts })}</span>`;
+  }
   return `<span class="wfam-light"><b>${i18n("WFAM.Light.Colour")}</b>: <span class="wfam-swatch" style="background:${l.colour}"></span> <b>${escape(l.colourName)}</b> (${escape(l.specifier)}) ${fmt("WFAM.Light.ForCaster", { actor: escape(caster.name) })}</span>`;
 }
 
@@ -614,7 +618,7 @@ export function wire() {
   Hooks.on("dropActorSheetData", onDropActorSheetData);
   Hooks.on("dropCanvasData", onDropCanvasData);
   const mod = game.modules.get(MODULE_ID);
-  if (mod) mod.api = { rollMiscast, buildMiscast, preRoll, witchlight, actorMagic, soulpyreLore, soulpyreNote, applyLoreAttribute, openSelectDialog, miscastTables, applyMiscast, promptForget, promptChoice, identifyTable, MISCAST_KEYS };
+  if (mod) mod.api = { rollMiscast, buildMiscast, preRoll, witchlight, witchlightChoice, actorMagic, soulpyreLore, soulpyreNote, applyLoreAttribute, openSelectDialog, miscastTables, applyMiscast, promptForget, promptChoice, identifyTable, MISCAST_KEYS };
 }
 
 Hooks.once("setup", wire);

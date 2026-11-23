@@ -43,16 +43,46 @@ Some text-only results with a clear mechanic get a small effect from this module
 
 ## Witchlight colours
 
-The eight Lores of the Winds, Necromancy and Daemonology use the colours of the system's own Witchlight script. Other Lores use this module's choices (`scripts/miscast-lore.mjs`, `LORE_COLOURS`): High Magic cycles every colour of the rainbow (rainbow-swirl animation), Tzeentch incandescent blues and purples, Nurgle and Plague sickly greens, Slaanesh pinks and lilacs, Chaos Undivided one of the four gods' colours, Hedgecraft fern green, Witchcraft murky violet, Ruin warpstone green, Stealth murky grey-green, Great Maw raw-meat red and Waaagh! green. Lores with several shades pick one with a die rolled with the card.
+Each Lore has its own colour and light animation (`scripts/miscast-lore.mjs`, `LORE_COLOURS`). The eight Lores of the Winds, Necromancy and Daemonology use the colours of the system's own Witchlight script; the rest were chosen with the user.
+
+| Lore | Colour | Animation |
+|---|---|---|
+| Fire | #b22222 Aqshy red | torch |
+| Heavens | #87ceeb Azyr sky blue | starlight |
+| Metal | #ee9b3a Chamon molten gold | revolving |
+| Shadow | #808080 Ulgu grey | smokepatch |
+| Life | #008000 Ghyran green | wave |
+| Beasts | #a52a2a Ghur brown | pulse |
+| Light | #f0ffff Hysh brilliant white | sunburst |
+| Death | #800080 Shyish purple | ghost |
+| Necromancy | #800080 necromantic purple | fog |
+| Daemonology | #8b0000 daemonic dark red | hexa |
+| Dark Magic | #9d00ff intense dark purple | emanation |
+| High Magic | every colour of the rainbow | rainbow swirl |
+| Tzeentch | #1f8fff incandescent blue | vortex |
+| Nurgle / Plague | sickly yellow-green, bilious olive or pus green | fairy |
+| Slaanesh | hot pink, orchid or pale lilac | siren |
+| Chaos Undivided | Khorne red, Nurgle green, Tzeentch blue or Slaanesh pink | chroma |
+| Big Waaagh! | #00c853 Waaagh! emerald | energy |
+| Little Waaagh! | #b2f2a0 pale grot green | flame |
+| Hedgecraft | #4f7942 fern green | dome |
+| Witchcraft | #5b3f6e murky violet | witchwave |
+| Ruin | #7fff00 warpstone green | grid |
+| Stealth | #6e7f6e murky grey-green | smokepatch |
+| Great Maw | #c0392b raw-meat red | pulse |
+
+Lores with several shades pick one with a die rolled with the card.
 
 The Lores come from the character's spells (not Petty or "any Lore" spells), Arcane Magic / Chaos Magic talents, Witch!, the Spellcaster trait and Channelling (Wind) skills.
 
-- One Lore: that Lore's colour.
-- Several Lores: one token light can only hold one colour, so the colours are blended as light and the effect says "swirling X and Y".
+- One Lore: that Lore's colour and animation.
+- Several Lores: the character is asked which Lore's light they glow with (the prompt opens for the actor's owner, the same way the effect is created). If nobody answers within 5 minutes, the GM gets a note and the card's die picks one.
 - Magic but no Lore (Petty only, or a Lore the module doesn't know): a colour no Lore uses (teal, turquoise, coral, peach or aquamarine), picked by a die rolled with the card.
 - No magic: a dull white.
 
-The card shows the colour for the caster. Dropped on someone else, it uses that character's Lores with the same dice.
+No chat message is posted when the light is applied; the effect's name shows the Lore (e.g. "Witchlight (Fire)").
+
+The card shows the colour for the caster (or, for a caster with several Lores, the choices). Dropped on someone else, it uses that character's Lores with the same dice.
 
 ## Other results
 

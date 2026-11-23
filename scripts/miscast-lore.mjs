@@ -11,35 +11,35 @@
 /** key -> { colours: [[hex, name], ...], name?, animation?, aliases?, source } */
 export const LORE_COLOURS = {
   // wfrp4e system Witchlight / Soulfire colours (the Winds' colours)
-  fire: { colours: [["#b22222", "Aqshy red"]], source: "system" },
-  heavens: { colours: [["#87ceeb", "Azyr sky blue"]], source: "system" },
-  metal: { colours: [["#ee9b3a", "Chamon molten gold"]], source: "system" },
-  shadow: { colours: [["#808080", "Ulgu grey"]], source: "system" },
-  life: { colours: [["#008000", "Ghyran green"]], source: "system" },
-  beasts: { colours: [["#a52a2a", "Ghur brown"]], source: "system" },
-  light: { colours: [["#f0ffff", "Hysh brilliant white"]], source: "system" },
-  death: { colours: [["#800080", "Shyish purple"]], source: "system" },
-  necromancy: { colours: [["#800080", "necromantic purple"]], source: "system" },
-  daemonology: { colours: [["#8b0000", "daemonic dark red"]], source: "system" },
-  // From the brief
+  fire: { colours: [["#b22222", "Aqshy red"]], animation: "torch", source: "system" },
+  heavens: { colours: [["#87ceeb", "Azyr sky blue"]], animation: "starlight", source: "system" },
+  metal: { colours: [["#ee9b3a", "Chamon molten gold"]], animation: "revolving", source: "system" },
+  shadow: { colours: [["#808080", "Ulgu grey"]], animation: "smokepatch", source: "system" },
+  life: { colours: [["#008000", "Ghyran green"]], animation: "wave", source: "system" },
+  beasts: { colours: [["#a52a2a", "Ghur brown"]], animation: "pulse", source: "system" },
+  light: { colours: [["#f0ffff", "Hysh brilliant white"]], animation: "sunburst", source: "system" },
+  death: { colours: [["#800080", "Shyish purple"]], animation: "ghost", source: "system" },
+  necromancy: { colours: [["#800080", "necromantic purple"]], animation: "fog", source: "system" },
+  daemonology: { colours: [["#8b0000", "daemonic dark red"]], animation: "hexa", source: "system" },
+  // From the user
   high: {
     colours: [["#ff0000", "red"], ["#ff7f00", "orange"], ["#ffff00", "yellow"], ["#00ff00", "green"], ["#0000ff", "blue"], ["#4b0082", "indigo"], ["#8f00ff", "violet"]],
-    name: "every colour of the rainbow", animation: "rainbowswirl", aliases: ["qhaysh", "highmagic"], source: "brief"
+    name: "every colour of the rainbow", animation: "rainbowswirl", aliases: ["qhaysh", "highmagic"], source: "user"
   },
-  tzeentch: { colours: [["#1e90ff", "incandescent blue"], ["#00e5ff", "incandescent cyan"], ["#8a2be2", "blue-violet"], ["#b14cff", "incandescent purple"]], source: "brief" },
-  nurgle: { colours: [["#9acd32", "sickly yellow-green"], ["#6b8e23", "bilious olive"], ["#a4c639", "pus green"]], source: "brief" },
-  plague: { colours: [["#9acd32", "sickly yellow-green"], ["#6b8e23", "bilious olive"], ["#a4c639", "pus green"]], source: "brief" },
-  // Confident
-  slaanesh: { colours: [["#ff69b4", "hot pink"], ["#da70d6", "orchid"], ["#e6a8d7", "pale lilac"]], source: "confident" },
-  waaagh: { colours: [["#39ff14", "Waaagh! green"]], aliases: ["littlewaaagh", "bigwaaagh", "waagh"], source: "confident" },
-  // Chaos Undivided: one of the four gods' colours (not changed by the user)
-  undivided: { colours: [["#c00000", "Khorne red"], ["#9acd32", "Nurgle green"], ["#1e90ff", "Tzeentch blue"], ["#ff69b4", "Slaanesh pink"]], aliases: ["chaos", "chaosundivided"], source: "confident" },
-  // Picked by the user
-  hedgecraft: { colours: [["#4f7942", "fern green"]], aliases: ["hedge"], source: "user" },
-  witchcraft: { colours: [["#5b3f6e", "murky violet"]], aliases: ["witch"], source: "user" },
-  ruin: { colours: [["#7fff00", "warpstone green"]], source: "user" },
-  stealth: { colours: [["#6e7f6e", "murky grey-green"]], source: "user" },
-  greatmaw: { colours: [["#c0392b", "raw-meat red"]], aliases: ["maw", "gutmagic", "gut"], source: "user" }
+  tzeentch: { colours: [["#1f8fff", "incandescent blue"]], animation: "vortex", source: "user" },
+  nurgle: { colours: [["#9acd32", "sickly yellow-green"], ["#6b8e23", "bilious olive"], ["#a4c639", "pus green"]], animation: "fairy", source: "user" },
+  plague: { colours: [["#9acd32", "sickly yellow-green"], ["#6b8e23", "bilious olive"], ["#a4c639", "pus green"]], animation: "fairy", source: "user" },
+  dark: { colours: [["#9d00ff", "intense dark purple"]], animation: "emanation", aliases: ["darkmagic", "druchii", "druchiimagic"], source: "user" },
+  bigwaaagh: { colours: [["#00c853", "Waaagh! emerald"]], animation: "energy", aliases: ["waaagh", "waagh", "bigwaagh"], source: "user" },
+  littlewaaagh: { colours: [["#b2f2a0", "pale grot green"]], animation: "flame", aliases: ["littlewaagh"], source: "user" },
+  hedgecraft: { colours: [["#4f7942", "fern green"]], animation: "dome", aliases: ["hedge"], source: "user" },
+  witchcraft: { colours: [["#5b3f6e", "murky violet"]], animation: "witchwave", aliases: ["witch"], source: "user" },
+  ruin: { colours: [["#7fff00", "warpstone green"]], animation: "grid", source: "user" },
+  stealth: { colours: [["#6e7f6e", "murky grey-green"]], animation: "smokepatch", source: "user" },
+  greatmaw: { colours: [["#c0392b", "raw-meat red"]], animation: "pulse", aliases: ["maw", "gutmagic", "gut"], source: "user" },
+  // Confident picks
+  slaanesh: { colours: [["#ff69b4", "hot pink"], ["#da70d6", "orchid"], ["#e6a8d7", "pale lilac"]], animation: "siren", source: "confident" },
+  undivided: { colours: [["#c00000", "Khorne red"], ["#9acd32", "Nurgle green"], ["#1e90ff", "Tzeentch blue"], ["#ff69b4", "Slaanesh pink"]], animation: "chroma", aliases: ["chaos", "chaosundivided"], source: "confident" }
 };
 
 /** Magic but no Lore: a colour no Lore uses, picked with a die rolled on the card. */
@@ -102,25 +102,24 @@ export function actorMagic(actor) {
   return { hasMagic, lores: [...lores].sort(), unknown: [...unknown] };
 }
 
-const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
-const toHex = rgb => "#" + rgb.map(v => Math.round(v).toString(16).padStart(2, "0")).join("");
-/** Blend colours as light: average in linear RGB, then re-gamma (keeps mixed light bright). */
-export function blend(colours) {
-  const lin = v => Math.pow(v / 255, 2.2);
-  const avg = [0, 1, 2].map(i => colours.reduce((a, c) => a + lin(hex(c)[i]), 0) / colours.length);
-  return toHex(avg.map(v => 255 * Math.pow(v, 1 / 2.2)));
-}
-
 const loreLabel = key => {
   const l = game.wfrp4e?.config?.magicLores?.[key];
   return l ? game.i18n.localize(l) : key.charAt(0).toUpperCase() + key.slice(1);
 };
 
+/** One Lore's Witchlight: {key, label, colour, colourName, animation}. */
+export function loreLight(key, shade = 1) {
+  const l = LORE_COLOURS[key];
+  const [colour, shadeName] = l.colours[(shade - 1) % l.colours.length];
+  return { key, label: loreLabel(key), colour, colourName: l.name ?? shadeName, animation: l.animation ?? "fog" };
+}
+
 /**
  * Witchlight colour for an actor.
+ * kind "lore": one Lore. kind "lores": several, the character picks one (`lores`), and
+ * `fallback` is the one picked by the card's die if nobody answers.
  * @param {Actor} actor
  * @param {{shade: number, pick: number}} dice two 1d1000 results rolled on the card
- * @returns {{kind: string, colour: string, colourName: string, animation: string, specifier: string, lores: object[]}}
  */
 export function witchlight(actor, { shade = 1, pick = 1 } = {}) {
   const magic = actorMagic(actor);
@@ -129,17 +128,17 @@ export function witchlight(actor, { shade = 1, pick = 1 } = {}) {
     const [colour, colourName] = NO_LORE_COLOURS[(pick - 1) % NO_LORE_COLOURS.length];
     return { kind: "nolore", colour, colourName, animation: "fog", specifier: game.i18n.localize("WFAM.Light.NoLore"), lores: [], unknown: magic.unknown };
   }
-  const lores = magic.lores.map((key, i) => {
-    const pal = LORE_COLOURS[key].colours;
-    const [colour, shadeName] = pal[(shade - 1 + i) % pal.length];
-    const colourName = LORE_COLOURS[key].name ?? shadeName; // High: the light cycles the rainbow
-    return { key, label: loreLabel(key), colour, colourName, animation: LORE_COLOURS[key].animation };
-  });
-  const specifier = lores.map(l => l.label).join(" & ");
-  if (lores.length === 1) return { kind: "lore", colour: lores[0].colour, colourName: lores[0].colourName, animation: lores[0].animation ?? "fog", specifier, lores };
-  const names = lores.map(l => l.colourName);
-  const colourName = game.i18n.format("WFAM.Light.Swirling", { colours: names.slice(0, -1).join(", ") + " " + game.i18n.localize("WFAM.Light.And") + " " + names.at(-1) });
-  return { kind: "lores", colour: blend(lores.map(l => l.colour)), colourName, animation: "fog", specifier, lores };
+  const lores = magic.lores.map(key => loreLight(key, shade));
+  if (lores.length === 1) return { kind: "lore", ...lores[0], specifier: lores[0].label, lores };
+  const fallback = lores[(pick - 1) % lores.length];
+  return { kind: "lores", colour: null, colourName: null, animation: null, specifier: lores.map(l => l.label).join(" / "), lores, fallback };
+}
+
+/** The final light once a Lore is chosen (or the only one). */
+export function witchlightChoice(light, key) {
+  if (light.kind !== "lores") return light;
+  const l = light.lores.find(x => x.key === key) ?? light.fallback;
+  return { kind: "lore", ...l, specifier: l.label, lores: [l], chosen: true };
 }
 
 /* ------------------------------------------------------------------------------------------ */
