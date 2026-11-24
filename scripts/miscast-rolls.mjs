@@ -87,10 +87,14 @@ export async function preRoll(built) {
   const effect = built.effect;
   const pool = [];
   const rolls = [];
+  // Module effects can name what a die picks (e.g. 1d4 -> hit location key), shown on the card.
+  const rollText = effect?.flags?.[MODULE_ID]?.rollText ?? {};
   for (const { formula, label } of effect ? scriptRolls(effect) : []) {
     let roll;
     try { roll = await rollWith(formula); } catch (e) { continue; }
     const entry = { formula, label, sig: diceSig(roll), dice: diceResults(roll), total: roll.total, used: false };
+    const named = rollText[formula]?.[roll.total - 1];
+    if (named) entry.text = game.wfrp4e?.config?.locations?.[named] ?? named;
     pool.push(entry);
     rolls.push(entry);
   }
@@ -122,13 +126,16 @@ export async function preRoll(built) {
 
   if (effect) {
     if (duration) {
-      effect.duration = { ...(effect.duration ?? {}), value: duration.value, units: duration.units };
+      // An effect stored without a duration carries expiry: null, which Foundry v14 reads as
+      // "expire on duration alone" with no start round, so it ended as soon as combat started.
+      // Use the default a numeric duration gets (turnStart).
+      effect.duration = { ...(effect.duration ?? {}), value: duration.value, units: duration.units, expiry: effect.duration?.expiry || "turnStart" };
       built.rolledDuration = duration;
     }
     if (effect.description) effect.description = built.description;
     foundry.utils.setProperty(effect, `flags.${MODULE_ID}.${FLAG}`, rolls.map(({ formula, label, sig, dice, total }) => ({ formula, label, sig, dice, total })));
   }
-  built.rolls = rolls.map(({ formula, label, total }) => ({ formula, label, total }));
+  built.rolls = rolls.map(({ formula, label, total, text }) => ({ formula, label, total, ...(text ? { text } : {}) }));
   return built;
 }
 

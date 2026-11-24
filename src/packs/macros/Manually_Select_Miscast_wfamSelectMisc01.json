@@ -1,0 +1,15 @@
+{
+  "_id": "wfamSelectMisc01",
+  "name": "Manually Select Miscast",
+  "type": "script",
+  "command": "// Manually Select Miscast (WFRP 4e Automated Miscasts): post the card for a chosen result of a chosen miscast table, for testing.\nconst api = game.modules.get(\"wfrp4e-automated-miscasts\")?.api;\nif (!api) return ui.notifications.error(\"WFRP 4e Automated Miscasts is not active.\");\napi.openSelectDialog();\n",
+  "img": "icons/magic/symbols/runes-star-pentagon-magenta.webp",
+  "scope": "global",
+  "folder": null,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "sort": 0,
+  "_key": "!macros!wfamSelectMisc01"
+}

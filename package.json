@@ -1,0 +1,13 @@
+{
+  "name": "wfrp4e-automated-miscasts",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node tools/packs.mjs compile",
+    "extract": "node tools/packs.mjs extract",
+    "validate": "node tools/validate.mjs"
+  },
+  "devDependencies": {
+    "@foundryvtt/foundryvtt-cli": "^3.0.5"
+  }
+}
